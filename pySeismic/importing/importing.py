@@ -1,12 +1,33 @@
 """
+Functions for importing ground motion data
+
+The only functions currently provided are for a format provided from the recent 2023 Turkey EQ
+
+Other resources for future reference:
+https://ds.iris.edu/ds/nodes/dmc/data/formats/seed/
+https://www.geonet.org.nz/data/supplementary/strong_motion_file_formats
+http://www.cosmos-eq.org/menu/2_Publications/cosmos_format_1_20.pdf
+https://www.usgs.gov/programs/earthquake-hazards/science/seismic-design-data-sets-text-file-format
+https://github.com/pham-hung/PEER-to-ASCII
+https://peer.berkeley.edu/peer-strong-ground-motion-databases
+
 
 """
 
 from os.path import join, splitext
 # from os.path import exists, isdir, isfile, basename
 
-def ASC_extract(asc_files, folder=r'./', export=False):
-    """"""
+def ASC_import(asc_files, folder=r'./', export=False):
+    """
+    Imports a list of ASC files from a single folder and returns 
+    a dictionary containing one entry for each file. In other words, 
+    it does not identify pairs or triplets of files. 
+
+    The dictionary can easily be read into a Pandas dataframe for
+    further processing.
+
+    This data is best suited for plotting with the 
+    """
     EQ_dict = {}
     for asc in asc_files:
         name, _ = splitext(asc)
@@ -71,7 +92,21 @@ def ASC_extract(asc_files, folder=r'./', export=False):
     return EQ_dict
 
 
-def ASC_extract2(asc_files, folder=r'./'):
+def ASC_import2(asc_files, folder=r'./'):
+    """
+    Returns a dictionary of two dictionaries - one for ground motions (key 'TH') and 
+    one for response spectra (key 'RS'). The keys of each sub-dictionary are the truncated
+    filenames. 
+
+    This function ignores all metadata, apart from extracting 'SAMPLING_INTERVAL_S' 
+    and 'UNITS' to get the delta-t for the acceleration records ('TH') and to 
+    report the recorded measurement units respectively. 
+
+    Note that it is hardwired for the filename formats in the resources folder:
+        20230206011732_4628_ap_ResSpecAcc_E.asc -> key = "20230206011732_4628"
+
+    This data is best suited for direct plotting using the EQ_Plots function.
+    """
     TH_dict = {}
     RS_dict = {}
 
@@ -118,7 +153,7 @@ def ASC_extract2(asc_files, folder=r'./'):
             data = [(float(x), float(y)) for x, y in th]
             th_dict[direction] = data
             TH_dict[ev_st] = th_dict.copy()
-            asc_dict
+            asc_dict = {}  # asc_dict is discarded
 
         elif '_ResSpecAcc_' in asc:
             print('ResSpecAcc', asc)

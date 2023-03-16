@@ -11,78 +11,6 @@ import matplotlib.lines as lines
 
 
 
-def response_spectrum_plots(T_range, S_a_ranges, titles, plot_pts=[], **kwargs):
-    """Generates a set of pseudo response spectrum plots based on spectral acceleration (units of g)
-
-    Args:
-        T_range (list[float]: time values - it is assumed that the range is the same for all plots
-        S_a_ranges: spectral acceleration (assumed to be in units of g)
-        titles (list[str]): one title for each S_a_range
-        plot_pts (list[tuple,list]): (T, S_v) points for plotting 
-        kwargs: parameters for passing through to? Nowhere at present
-    """
-    figsize = kwargs.get('figsize', (10,15))
-    suptitle = kwargs.get('suptitle', '')
-    T_max = kwargs.get('T_max', None)
-    
-    
-    if T_max is not None:
-        T_range = [T for T in T_range if T <= T_max]
-        T_num = len(T_range)
-        S_a_ranges = [S_a_range[:T_num] for S_a_range in S_a_ranges]
-    
-    S_v_ranges = [[9.81 * 0.5 / pi * T * S_a for T, S_a in zip(T_range, S_a_range)] for S_a_range in S_a_ranges]
-    S_d_ranges = [[0.5 / pi * T * S_v for T, S_v in zip(T_range, S_v_range)] for S_v_range in S_v_ranges]
-
-    figs, (ax1, ax2, ax3, ax4) = plt.subplots(4,figsize=figsize)
-    if len(suptitle) > 0:
-        figs.suptitle(suptitle)
-    figs.tight_layout()
-
-    [ax1.plot(T_range, S_a_range, label=s_c) for s_c, S_a_range in zip(titles, S_a_ranges)]
-    ax1.grid(True)
-    ax1.legend(titles)
-    ax1.set_ylabel(f'Acceleration (g)')
-    ax1.set_xlim((0,T_max))
-    ax1.set_ylim((0,None))
-        
-    [ax2.plot(T_range, S_v_range, label=s_c) for s_c, S_v_range in zip(titles, S_v_ranges)]
-    ax2.grid(True)
-    ax2.legend(titles)
-    ax2.set_ylabel(f'Velocity (m/s)')
-    ax2.set_xlim((0,T_max))
-    ax2.set_ylim((0,None))
-    
-    [ax3.plot(T_range, S_d_range, label=s_c) for s_c, S_d_range in zip(titles, S_d_ranges)]
-    ax3.grid(True)
-    ax3.legend(titles)
-    ax3.set_xlabel(f'Period (s)')
-    ax3.set_ylabel(f'Displacement (m)')
-    ax3.set_xlim((0,T_max))
-    ax3.set_ylim((0,None))
-    
-    [ax4.plot(S_d_range, S_a_range, label=s_c) for s_c, S_d_range, S_a_range in zip(titles, S_d_ranges, S_a_ranges)]
-    ax4.grid(True)
-    ax4.legend(titles)
-    ax4.set_ylabel(f'Acceleration (g)')
-    ax4.set_xlabel(f'Displacement (m)')
-    ax4.set_xlim((0,None))
-    ax4.set_ylim((0,None))
-
-    if len(plot_pts) > 0:
-        for pt in plot_pts:
-            T, S_v = pt
-            S_a = S_v / 0.5 * pi / T / 9.81  # in m/s
-            ax1.plot(T, S_a, marker = 'o')
-            # S_v = 0.5 / pi * T *  S_a * 9.81  # in m/s
-            ax2.plot(T, S_v, marker = 'o')
-            S_d = 0.5 / pi * T *  S_v  # in m
-            ax3.plot(T, S_d, marker = 'o')
-            ax4.plot(S_d, S_a, marker = 'o')
-    
-    return figs
-
-
 def tripartite_plot(
     T_range, S_v_ranges, titles, plot_pts=[], 
     debug=False, 
@@ -310,3 +238,172 @@ def tripartite_plot(
         [ax0.plot(T, v, marker = 'o') for T,v in plot_pts]
     
     return fig0
+
+
+def response_spectrum_plots(T_range, PS_a_ranges, titles, plot_pts=[], **kwargs):
+    """Generates a set of pseudo response spectrum plots based on spectral acceleration (units of g)
+
+    Args:
+        T_range (list[float]: time values - it is assumed that the range is the same for all plots
+        PS_a_ranges: pseudo spectral acceleration (assumed to be in units of g)
+        titles (list[str]): one title for each S_a_range
+        plot_pts (list[tuple,list]): (T, S_v) points for plotting 
+        kwargs: parameters for passing through to? Nowhere at present
+    """
+    figsize = kwargs.get('figsize', (10,15))
+    suptitle = kwargs.get('suptitle', '')
+    T_max = kwargs.get('T_max', None)
+    
+    if T_max is not None:
+        T_range = [T for T in T_range if T <= T_max]
+        T_num = len(T_range)
+        # PS_a_ranges = [[2 * pi / T * S_v / 9.81 for T, S_v in zip(T_range, S_v_range)] for S_v_range in S_v_ranges]
+        PS_a_ranges = [PS_a_range[:T_num] for PS_a_range in PS_a_ranges]
+    
+    S_v_ranges = [[9.81 * 0.5 / pi * T * PS_a for T, PS_a in zip(T_range, PS_a_range)] for PS_a_range in PS_a_ranges]
+    # PS_a_ranges = [[2 * pi / T * S_v / 9.81 for T, S_v in zip(T_range, S_v_range)] for S_v_range in S_v_ranges]
+    PS_d_ranges = [[0.5 / pi * T * S_v for T, S_v in zip(T_range, S_v_range)] for S_v_range in S_v_ranges]
+
+    figs, (ax1, ax2, ax3, ax4) = plt.subplots(4,figsize=figsize)
+    if len(suptitle) > 0:
+        figs.suptitle(suptitle)
+    figs.tight_layout()
+
+    [ax1.plot(T_range, PS_a_range, label=s_c) for s_c, PS_a_range in zip(titles, PS_a_ranges)]
+    ax1.grid(True)
+    ax1.legend(titles)
+    ax1.set_ylabel(f'Acceleration (g)')
+    ax1.set_xlim((0,T_max))
+    ax1.set_ylim((0,None))
+        
+    [ax2.plot(T_range, S_v_range, label=s_c) for s_c, S_v_range in zip(titles, S_v_ranges)]
+    ax2.grid(True)
+    ax2.legend(titles)
+    ax2.set_ylabel(f'Velocity (m/s)')
+    ax2.set_xlim((0,T_max))
+    ax2.set_ylim((0,None))
+    
+    [ax3.plot(T_range, PS_d_range, label=s_c) for s_c, PS_d_range in zip(titles, PS_d_ranges)]
+    ax3.grid(True)
+    ax3.legend(titles)
+    ax3.set_xlabel(f'Period (s)')
+    ax3.set_ylabel(f'Displacement (m)')
+    ax3.set_xlim((0,T_max))
+    ax3.set_ylim((0,None))
+    
+    [ax4.plot(PS_d_range, PS_a_range, label=s_c) for s_c, PS_d_range, PS_a_range in zip(titles, PS_d_ranges, PS_a_ranges)]
+    ax4.grid(True)
+    ax4.legend(titles)
+    ax4.set_ylabel(f'Acceleration (g)')
+    ax4.set_xlabel(f'Displacement (m)')
+    ax4.set_xlim((0,None))
+    ax4.set_ylim((0,None))
+
+    if len(plot_pts) > 0:
+        for pt in plot_pts:
+            T, S_v = pt
+            PS_a = S_v / 0.5 * pi / T / 9.81  # in m/s
+            ax1.plot(T, PS_a, marker = 'o')
+            # S_v = 0.5 / pi * T *  PS_a * 9.81  # in m/s
+            ax2.plot(T, S_v, marker = 'o')
+            PS_d = 0.5 / pi * T *  S_v  # in m
+            ax3.plot(T, PS_d, marker = 'o')
+            ax4.plot(PS_d, PS_a, marker = 'o')
+    
+    return figs
+
+
+def EQ_plots(TH_dict, RS_dict):
+    """Returns a list of plots based on data in a pair of matching 
+    dictionaries of time history and response spectrum
+
+    These dictionaries should be generated by the ASC_import2 function. The data 
+    for 'date', 'station', 'direction' etc assume a certain key format:
+        key = "20230206011732_4628" -> Date:2023-02-06 01:17 Station:4628
+
+    It is further assumed that the directions of the motion are 
+    
+    Args:
+        TH_dict: a dictionary containing earthquake ground acceleration data under the following keys
+            - ground motion as list of (t, a) under keys such as 'E', 'N', 'U'.
+            - xlabel and ylabel
+        RS_dict: 
+            - response spectra as list of (T, Sa) under keys such as 'E', 'N', 'U'.
+            - 
+    Returns:
+        a list of figure objects
+    """
+
+    # eq_dates = [f'{eq[:4]}-{eq[4:6]}-{eq[6:8]} {eq[8:10]}:{eq[10:12]}' for eq in TH_dict.keys()]
+    # eq_stations = [f'{eq[-4:]}' for eq in TH_dict.keys()]
+
+    figs_list = []
+    for eq in TH_dict.keys():
+        eq_date = f'{eq[:4]}-{eq[4:6]}-{eq[6:8]} {eq[8:10]}:{eq[10:12]}'
+        eq_station = f'{eq[-4:]}'
+        suptitle = f'Station: {eq_station},    Date: {eq_date}'
+        
+        figs_list.append(EQ_plot(
+            eq, TH_dict, RS_dict, ('E', 'N', 'U'), 
+            rs_xlim = (0,None), 
+            eq_date = eq_date,
+            suptitle = suptitle
+        ))
+    
+    return figs_list
+
+
+
+def EQ_plot(eq, TH_dict, RS_dict, eq_dirs, eq_date = '', suptitle = '', rs_xlim = (0, None)):
+    """Plots earthquake motion data for ground accelerations and 
+    response spectra in a 3x2 grid and prints to file (SVG & PNG).
+    
+    'eq' is the key to the relevant earthquake in the dictionaries 
+    generated by the ASC_import2 function
+    'eq_dirs' must be keys in the dictionary referring to direction for each record, 
+        e.g. 'E', 'N', 'U'
+    """
+    
+    S_a_ranges = []
+    titles = []
+
+    th_dict = TH_dict[eq]
+    rs_dict = RS_dict[eq]
+    # print(th_dict.keys())
+    # print(rs_dict.keys())
+
+    fig, [[ax11, ax21], [ax12, ax22], [ax13, ax23]] = plt.subplots(nrows=3, ncols=2, figsize=(18,18)) # this is the overall Figure and the Axes object
+    # fig.set_label(eq)
+    fig.suptitle(suptitle)
+    
+    for ax in [ax11, ax21, ax12, ax22, ax13, ax23]:
+        ax.grid(True)
+
+    
+    axes = [[ax11, ax21], [ax12, ax22], [ax13, ax23]]
+    lts = ['-', '-', '-']
+    for i, (eqd, ax, lt) in enumerate(zip(eq_dirs, axes, lts)):
+        color = f'C{i}'
+        # Plotting the data...
+        tE, aE = zip(*th_dict[eqd])
+        ax[0].hlines(0, 0, tE[-1], colors='k', lw=2)
+        ax[0].plot(tE, aE, lt, color=color)
+        ax[0].set_title(f'Acceleration - {eqd}')
+        ax[0].set_xlabel(th_dict.get('xlabel', 'Time (s)'))
+        ax[0].set_ylabel(th_dict.get('ylabel', 'Acceleration'))
+        ax[0].set_xlim((0, tE[-1]))
+        tE, aE = zip(*rs_dict[eqd])
+        S_a_ranges.append([a / 980.665 for a in aE]) # assumes cm/s^2
+        ax[1].plot(tE, aE, lt, color=color)
+        ax[1].set_title(f'Response Spectrum - {eqd}')
+        titles.append(f'{eq_date} ({eqd})')
+        ax[1].set_xlabel(rs_dict.get('xlabel', 'Period (s)'))
+        ax[1].set_ylabel(rs_dict.get('ylabel', 'Acceleration'))
+        ax[1].set_xlim(rs_xlim)
+        ax[1].set_ylim((0, None))
+        
+    fig.tight_layout()
+    fig.savefig(eq + '.svg')
+    fig.savefig(eq + '.png')
+
+    return fig
