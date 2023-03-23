@@ -108,17 +108,32 @@ def shear_coords(elevs, shears):
 # ----- Seismic Hazard --------------------------------------------
 # -----------------------------------------------------------------
 
-C_t_dict = {'S1':0.035, 'S1a':0.035, 'C1':0.018, 'S2':0.030, 'S2a': 0.030}
-C_t_get = lambda x: C_t_dict.get(x, 0.020)  # a lookup function that returns default of 0.020
+# T_code_get, B_1_func, site_coeffs, code_period, S_a_func, 
 
-beta_dict = {'S1':0.80, 'S1a':0.80, 'C1':0.90}
-beta_get = lambda x: beta_dict.get(x, 0.75)  # a lookup function that returns default of 0.75
+# Eq 4-5 & 7-18 ASCE41
+C_t_dict = {'S1':0.035, 'S1a':0.035, 'C1':0.018, 'S2':0.030, 'S2a': 0.030, 'other':0.020}
+
+def C_t_get(x):
+    """Empirical building period parameter (C_t) for imperial units of ft (default of 0.020)
+    Eq 4-5 & 7-18 ASCE41"""
+    return C_t_dict.get(x, 0.020)  
+
+# Eq 4-5 & 7-18 ASCE41
+beta_dict = {'S1':0.80, 'S1a':0.80, 'C1':0.90, 'other':0.75}
+
+def beta_get(x):
+    """Empirical building period parameter, x (default of 0.75) Eq 4-5 & 7-18 ASCE41"""
+    return beta_dict.get(x, 0.75)  
 
 unit_l_dict = {'m': 1.0, 'cm': 0.01, 'mm':0.001, 'in':0.0254, 'ft':0.3048, 'yd':0.9144}
-unit_l_get = lambda x: unit_l_dict.get(x, None)  # a lookup function that returns default of None
+
+def unit_l_get(x):
+    """a units scaling lookup function that returns default of None"""
+    return unit_l_dict.get(x, None)  
 
 def T_code_get(s_type, height, units = 'm'):
-    """Returns the code period in seconds for a given structure type and height Eqn 4-4"""
+    """Returns the code period in seconds for a given structure type and height 
+    Eq 4-5 & 7-18 ASCE41 (Eqn 4-4?)"""
     C_t = C_t_get(s_type)
     beta = beta_get(s_type)
     u_fac = unit_l_get(units)
@@ -126,7 +141,11 @@ def T_code_get(s_type, height, units = 'm'):
     return C_t * height ** beta if units == 'ft' else C_t * (u_fac / ft_fac * height) ** beta
 
 
-B_1_func = lambda x: 4.0 / (5.6 - log(100 * x)) # for x as damping ratio (not percentage)
+def B_1_func(damp_ratio):
+    """Spectral response damping coefficient from 
+    damping ratio (not percentage) Eq 2-11 ASCE41"""
+    return 4.0 / (5.6 - log(100 * damp_ratio)) 
+
 
 # F_a and F_v taken from NEHRP 2015
 F_a_headers = (0.25,0.5,0.75,1.0,1.25,1.5)
@@ -175,6 +194,8 @@ def S_a_func(T, S_s, S_1, site_class, T_L = 12.0, B_1 = 1.0):
 # -----------------------------------------------------------------
 # ----- Tier One Data and Functions -------------------------------
 # -----------------------------------------------------------------
+
+# M_s_func, v_j_avg_mf, D_r, v_j_avg_sw
 
 struct_types_dict = {
 'W1': 'Light Wood Frame',
@@ -232,14 +253,16 @@ struct_types_full_dict = {
 }
 
 
-
+# ASCE41 ch 4
 M_s_dict = {'C1': {'CP':2.0, 'LS': 1.5, 'IO': 1.0},
             'C2': {'CP':4.5, 'LS': 3.0, 'IO': 1.5},
             'URM': {'CP':1.75, 'LS': 1.25, 'IO': 1.0}}
 
 
 def M_s_func(name, perf):
-    """Returns data from a dictionary of M_s
+    """Returns data from a dictionary of M_s (Tier 1 system modification factor,
+    ch 4, ASCE41-17)
+    
     inputs:
         name - the name of the system (currently a choice of 'C1', 'C2', 'URM')
         perf - performance level:
@@ -285,6 +308,8 @@ def v_j_avg_sw(V_j, A_w, M_s):
 
 
 ####### Plotting #########################################################
+# ASCE41_17_plots, ASCE41_17_tripartite_plot, tripartite_plot_ss
+
 import matplotlib.pyplot as plt
 import matplotlib.lines as lines
 
@@ -297,26 +322,33 @@ def ASCE41_17_plots(S_s, S_1, T_code_s = 0.0, soil_classes = ['A', 'B', 'C', 'D'
     T_range = [0.01 * float(T) for T in range(1,lim)]
 
     #soil_classes = ['A', 'B', 'C', 'D', 'E']
-    S_a_ranges = [[S_a_func(T, S_s, S_1, s_c) for T in T_range] for s_c in soil_classes]
-    S_v_ranges = [[9.81 * 0.5 / pi * T * S_a for T, S_a in zip(T_range, S_a_range)] for S_a_range in S_a_ranges]
-    S_d_ranges = [[0.5 / pi * T * S_v for T, S_v in zip(T_range, S_v_range)] for S_v_range in S_v_ranges]
+    S_a_ranges = [[S_a_func(T, S_s, S_1, s_c) 
+                   for T in T_range] for s_c in soil_classes]
+    S_v_ranges = [[9.81 * 0.5 / pi * T * S_a 
+                   for T, S_a in zip(T_range, S_a_range)] for S_a_range in S_a_ranges]
+    S_d_ranges = [[0.5 / pi * T * S_v 
+                   for T, S_v in zip(T_range, S_v_range)] for S_v_range in S_v_ranges]
 
     figs, (ax1,ax2,ax3, ax4) = plt.subplots(4,figsize = (10,15))
 
-    [ax1.plot(T_range, S_a_range, label=s_c) for s_c, S_a_range in zip(soil_classes, S_a_ranges)]
+    [ax1.plot(T_range, S_a_range, label=s_c) 
+     for s_c, S_a_range in zip(soil_classes, S_a_ranges)]
     ax1.grid(True)
     ax1.legend(soil_classes)
 
-    [ax2.plot(T_range, S_v_range, label=s_c) for s_c, S_v_range in zip(soil_classes, S_v_ranges)]
+    [ax2.plot(T_range, S_v_range, label=s_c) 
+     for s_c, S_v_range in zip(soil_classes, S_v_ranges)]
     ax2.grid(True)
     ax2.legend(soil_classes)
 
-    [ax3.plot(T_range, S_d_range, label=s_c) for s_c, S_d_range in zip(soil_classes, S_d_ranges)]
+    [ax3.plot(T_range, S_d_range, label=s_c) 
+     for s_c, S_d_range in zip(soil_classes, S_d_ranges)]
     
     ax3.grid(True)
     ax3.legend(soil_classes)
 
-    [ax4.plot(S_d_range, S_a_range, label=s_c) for s_c, S_d_range, S_a_range in zip(soil_classes, S_d_ranges, S_a_ranges)]
+    [ax4.plot(S_d_range, S_a_range, label=s_c) 
+     for s_c, S_d_range, S_a_range in zip(soil_classes, S_d_ranges, S_a_ranges)]
     
     ax4.grid(True)
     ax4.legend(soil_classes)
@@ -338,7 +370,9 @@ def ASCE41_17_tripartite_plot(S_s, S_1, T_max = 3.0, soil_classes = ['A', 'B', '
     lim = round(T_max * 100) + 1
     T_range = [0.01 * float(T) for T in range(1,lim) if 0.01 * float(T) >= 0.1]
 
-    S_a_ranges = [[S_a_func(T, S_s, S_1, s_c) for T in T_range] for s_c in soil_classes]
+    S_a_ranges = [[S_a_func(T, S_s, S_1, s_c) 
+                   for T in T_range] 
+                   for s_c in soil_classes]
     
     plot_pts = []
     if T_code_s > 0 and site_class in soil_classes:
@@ -346,10 +380,15 @@ def ASCE41_17_tripartite_plot(S_s, S_1, T_max = 3.0, soil_classes = ['A', 'B', '
         S_v_g = 0.5 / pi * T_code_s *  S_a_g * 9.81  # in m/s
         plot_pts.append((T_code_s, S_v_g))
     
-    return tripartite_plot(T_range, S_a_ranges, soil_classes, plot_pts=plot_pts)
+    return tripartite_plot_ss(
+        T_range, 
+        S_a_ranges, 
+        soil_classes, 
+        plot_pts=plot_pts
+        )
 
 
-def tripartite_plot(T_range, S_a_ranges, titles, plot_pts=[], **kwargs):
+def tripartite_plot_ss(T_range, S_a_ranges, titles, plot_pts=[], **kwargs):
     """Plots tripartite data
         majorlines is a list of the minor log lines to plot (default [1,2,3,4,5,6,7,8,9])
     
@@ -366,18 +405,22 @@ def tripartite_plot(T_range, S_a_ranges, titles, plot_pts=[], **kwargs):
     if not (len(S_a_ranges) == len(titles)):
         err_msgs.append(f'Number of curves does not match: len(S_a_ranges) = {len(S_a_ranges)}, len(titles) = {len(titles)}')
     S_a_ranges_len = [len(S_a_range) for S_a_range in S_a_ranges]
-    if not (all(S_a_range_len == len(T_range) for S_a_range_len in S_a_ranges_len)):
+    if not (all(S_a_range_len == len(T_range) 
+                for S_a_range_len in S_a_ranges_len)):
         err_msgs.append(f'Number of curves does not match: len(T_range) = {len(T_range)}, len(S_a_ranges) = {S_a_ranges_len}')
     if len(err_msgs) > 0:
         err_msg = '\n'.join(err_msgs)
         raise ValueError(err_msg)
     
     # calculate the spectral pseudo velocities
-    S_v_ranges = [[9.81 * 0.5 / pi * T * S_a for T, S_a in zip(T_range, S_a_range)] for S_a_range in S_a_ranges]
+    S_v_ranges = [[9.81 * 0.5 / pi * T * S_a 
+                   for T, S_a in zip(T_range, S_a_range)] 
+                   for S_a_range in S_a_ranges]
     
     figsize = kwargs.get('figsize', (10,8))
     fig0, ax0 = plt.subplots(figsize = figsize)
-    [ax0.loglog(T_range, S_v_range, label=s_c) for s_c, S_v_range in zip(titles, S_v_ranges)]
+    [ax0.loglog(T_range, S_v_range, label=s_c) 
+     for s_c, S_v_range in zip(titles, S_v_ranges)]
     # ax0.loglog(T_code_s, S_v_g, marker = 'o') # marking the results for the building period
 
     ax0.grid(True)
@@ -396,11 +439,13 @@ def tripartite_plot(T_range, S_a_ranges, titles, plot_pts=[], **kwargs):
     log_v_min, log_v_max = log10(v_min), log10(v_max)
     #print('v_min, v_max', v_min, v_max)
     
-    a_min, a_max = [2.0 * pi / T * v for v, T in ((v_min, T_max),(v_max, T_min))]
+    a_min, a_max = [2.0 * pi / T * v 
+                    for v, T in ((v_min, T_max),(v_max, T_min))]
     log_a_min, log_a_max = log10(a_min), log10(a_max)
     #print('a_min, a_max', a_min, a_max)
     
-    d_min, d_max = [0.5 / pi * T * v for v, T in ((v_min, T_min),(v_max, T_max))]
+    d_min, d_max = [0.5 / pi * T * v 
+                    for v, T in ((v_min, T_min),(v_max, T_max))]
     log_d_min, log_d_max = log10(d_min), log10(d_max)
     #print('d_min, d_max', d_min, d_max)
     
@@ -414,16 +459,22 @@ def tripartite_plot(T_range, S_a_ranges, titles, plot_pts=[], **kwargs):
     
     #===========
     # generate the list of acceleration lines provided they are within the limits
-    a_list = [(m * 10**float(n)) for n in range(int(log10(a_min))-2, int(log10(a_max))) for m in major_lines if (m * 10**float(n) * a_fac > a_min) and (m * 10**float(n) * a_fac < a_max)]
+    a_list = [(m * 10**float(n)) 
+              for n in range(int(log10(a_min))-2, int(log10(a_max))) 
+              for m in major_lines if (m * 10**float(n) * a_fac > a_min) and (m * 10**float(n) * a_fac < a_max)]
     a_prec = [max(0,int(1+log10(0.99/a))) for a in a_list]
-    a_str = ['{:.{prec}f} {}'.format(a, a_unit, prec=p) for a, p in zip(a_list, a_prec)]
+    a_str = ['{:.{prec}f} {}'.format(a, a_unit, prec=p) 
+             for a, p in zip(a_list, a_prec)]
     a_values = [a * a_fac for a in a_list]
     #[print(a,b,s) for a,b,s in zip(a_list, a_values, a_str)]
     
     # generate the list of displacement lines provided they are within the limits
-    d_list = [(m * 10**float(n)) for n in range(int(log10(d_min)), int(log10(d_max))+1) for m in major_lines if (m * 10**float(n) * d_fac > d_min) and (m * 10**float(n) / d_fac < d_max)]
-    d_prec = [max(0,int(1+log10(0.99/d))) for d in d_list]
-    d_str = ['{:.{prec}f} {}'.format(d, d_unit, prec=p) for d, p in zip(d_list, d_prec)]
+    d_list = [(m * 10**float(n)) 
+              for n in range(int(log10(d_min)), int(log10(d_max))+1) for m in major_lines if (m * 10**float(n) * d_fac > d_min) and (m * 10**float(n) / d_fac < d_max)]
+    d_prec = [max(0,int(1+log10(0.99/d))) 
+              for d in d_list]
+    d_str = ['{:.{prec}f} {}'.format(d, d_unit, prec=p) 
+             for d, p in zip(d_list, d_prec)]
     d_values = [d * d_fac for d in d_list]
     #print('d_values (min & max)', d_values[0], d_values[-1])
     # 
