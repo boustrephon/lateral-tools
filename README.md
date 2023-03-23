@@ -24,5 +24,13 @@ The following libraries may be of use.
 * [`hvsrpy` on PyPI](https://pypi.org/project/hvsrpy/) ([documentation](https://hvsrpy.readthedocs.io/en/latest/?badge=latest)) - horizontal to vertical spectral ratio processing
 * [`openseespy` on PyPI]() ([documentation]()) 
 
+## TODO
+
+* ASCE41-17 Tier 1 calculations are not complete and need work
+* Tests need to be added
+* Calculations need QC review before use on projects
+
+
+
 
 
