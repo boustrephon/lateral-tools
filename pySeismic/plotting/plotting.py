@@ -12,7 +12,10 @@ import matplotlib.lines as lines
 
 
 def tripartite_plot(
-    T_range, S_v_ranges, titles, plot_pts=[], 
+    T_ranges, 
+    S_v_ranges, 
+    series_names = [],
+    plot_pts=[], 
     debug=False, 
     figsize=(10,8), 
     suptitle='', 
@@ -32,31 +35,35 @@ def tripartite_plot(
     * https://matplotlib.org/stable/api/_as_gen/matplotlib.lines.Line2D.html
 
     Args:
-        T_range (list[float]: time values - it is assumed that the range is the same for all plots
+        T_ranges: collection of time values (each as a collection of floats)
+            if there is only one item, it is assumed that the range is the same for all plots
         S_v_ranges: collection of spectral velocities (each as a collection of floats)
-        titles (list[str]): one title for each S_v_range
+        series_names (list[str]): one name for each S_v_range
         plot_pts (list[tuple,list]): (T, S_v) points for plotting 
         kwargs: parameters for passing through to `plot`
     """
     # One of the challenges is the need to switch between plain and log10 values
     # 
     
-    # === Data checks ===
-    # Input data checks: check that data dimensions (lengths) match
-    err_msgs = []
-    if not (len(S_v_ranges) == len(titles)):
-        err_msgs.append(f'Number of curves does not match: len(S_v_ranges) = {len(S_v_ranges)}, len(titles) = {len(titles)}')
-    S_v_ranges_len = [len(S_v_range) for S_v_range in S_v_ranges]
-    if not (all(S_v_range_len == len(T_range) for S_v_range_len in S_v_ranges_len)):
-        err_msgs.append(f'Number of curves does not match: len(T_range) = {len(T_range)}, len(S_v_ranges) = {S_v_ranges_len}')
-    if len(err_msgs) > 0:
-        err_msg = '\n'.join(err_msgs)
+    # Standardise period and check that numbers align
+    if isinstance(T_ranges[0],(int, float)):
+        T_ranges = len(S_v_ranges) * [T_ranges]
+    elif len(T_ranges) == 1 and isinstance(T_ranges[0],(tuple, list)):
+        T_ranges = len(S_v_ranges) * T_ranges
+    elif len(T_ranges) == len(S_v_ranges):
+        pass
+    else:
+        pass
+
+    if not (all(len(S_v_range) == len(T_range) for S_v_range, T_range in zip(S_v_ranges, T_ranges))):
+        T_ranges_len = [len(T_range) for T_range in T_ranges]
+        S_v_ranges_len = [len(S_v_range) for S_v_range in S_v_ranges]
+        err_msg = (f'Lengths of curves do not match: \n\tlen(T_ranges) = {T_ranges_len} \n\tlen(S_v_ranges) = {S_v_ranges_len}')
         raise ValueError(err_msg)
-    # === End data checks ===
 
     # calculate the spectral pseudo velocities (plain) - not needed
-    # S_v_ranges = [[9.81 * 0.5 / pi * T * S_a for T, S_a in zip(T_range, S_a_range)] for S_a_range in S_a_ranges]
-    # S_a_ranges = [[2 * pi / T * S_v / 9.81 for T, S_v in zip(T_range, S_v_range)] for S_v_range in S_v_ranges]
+    # S_v_ranges = [[9.81 * 0.5 / pi * T * S_a for T, S_a in zip(T_ranges, S_a_range)] for S_a_range in S_a_ranges]
+    # S_a_ranges = [[2 * pi / T * S_v / 9.81 for T, S_v in zip(T_ranges, S_v_range)] for S_v_range in S_v_ranges]
     
 
     # === Set up plot ==========
@@ -70,10 +77,12 @@ def tripartite_plot(
     fig0.tight_layout()
     ax0.grid(True, 'both')
     # fig = plt.gcf(); fig.set_size_inches(16,8)
-    ax0.legend(titles)
+    
 
     # Plot spectral velocity on log-log plot  (log-log space)
-    [ax0.loglog(T_range, S_v_range, label=s_c, **kwargs) for s_c, S_v_range in zip(titles, S_v_ranges)]
+    [ax0.loglog(T_range, S_v_range, **kwargs) 
+        for T_range, S_v_range in zip(T_ranges, S_v_ranges)]
+    
     # ax0.loglog(T_code_s, S_v_g, marker = 'o') # marking the results for the building period
     # === End set up plot ===
 
@@ -165,8 +174,10 @@ def tripartite_plot(
     # print('Td_min, Td_max', 10**Td_values[0], 10**Td_values[-1])
 
     # s1
-    s_a2 = [min(log_v_max - v, log_T_max - T) for v, T in zip(log_va_values, log_Ta_values)]
-    s_a1 = [max(log_v_min - v, log_T_min - T) for v, T in zip(log_va_values, log_Ta_values)]
+    s_a2 = [min(log_v_max - v, log_T_max - T) 
+            for v, T in zip(log_va_values, log_Ta_values)]
+    s_a1 = [max(log_v_min - v, log_T_min - T) 
+            for v, T in zip(log_va_values, log_Ta_values)]
     # print('s_a1[0], s_a2[0]', s_a1[0], s_a2[0])
 
     # identifying the index of the longest acceleration line for placing the text
@@ -174,8 +185,10 @@ def tripartite_plot(
     # print('m_a, i_a', m_a, i_a)
 
     # s1
-    s_d2 = [max(v - log_v_max, log_T_min - T) for v, T in zip(log_vd_values, log_Td_values)]
-    s_d1 = [min(v - log_v_min, log_T_max - T) for v, T in zip(log_vd_values, log_Td_values)]
+    s_d2 = [max(v - log_v_max, log_T_min - T) 
+            for v, T in zip(log_vd_values, log_Td_values)]
+    s_d1 = [min(v - log_v_min, log_T_max - T) 
+            for v, T in zip(log_vd_values, log_Td_values)]
     # print('s_d1[0], s_d2[0]', s_d1[0], s_d2[0])
 
     # identifying the index of the longest displacement line
@@ -215,7 +228,10 @@ def tripartite_plot(
     slope_A = atan2((ya2_display - ya1_display), (xa2_display - xa1_display))
     gradient_A = slope_A * 180 / pi
     
-    if debug: print(f'GradD = {slope_D:4.3f} radians ({gradient_D:4.2f} degrees), GradA = {slope_A:4.3f} radians ({gradient_A:4.2f} degrees)')
+    if debug: print(f'GradD = {slope_D:4.3f} radians ' +
+                    f'({gradient_D:4.2f} degrees), ' +
+                    f'GradA = {slope_A:4.3f} radians ' +
+                    f'({gradient_A:4.2f} degrees)')
     
     
     # Add acceleration, displacement and origin lines to ('extend') existing lines in the plot
@@ -228,11 +244,25 @@ def tripartite_plot(
         return '$'+txt+'$'
 
     # Add acceleration and displacement text to plot
-    [ax0.text(10**T, 10**v, format_txt(txt), transform=ax0.transData, axes=ax0, rotation=gradient_D, rotation_mode='anchor', 
-            alpha=0.5, zorder=0.1) for T, v, txt in zip(log_Ta_values, log_va_values, a_str)]
-    [ax0.text(10**T, 10**v, format_txt(txt), transform=ax0.transData, axes=ax0, rotation=gradient_A, rotation_mode='anchor',
-            alpha=0.5, zorder=0.1) for T, v, txt in zip(log_Td_values, log_vd_values, d_str)]
+    [ax0.text(10**T, 10**v, format_txt(txt), 
+              transform=ax0.transData, axes=ax0, 
+              rotation=gradient_D, rotation_mode='anchor', 
+              alpha=0.5, zorder=0.1) 
+                for T, v, txt in zip(log_Ta_values, log_va_values, a_str)]
+    [ax0.text(10**T, 10**v, format_txt(txt), 
+              transform=ax0.transData, axes=ax0, 
+              rotation=gradient_A, rotation_mode='anchor',
+              alpha=0.5, zorder=0.1) 
+                for T, v, txt in zip(log_Td_values, log_vd_values, d_str)]
     
+    # Legend
+    if len(series_names) == 0:
+        pass
+    elif len(series_names) == len(S_v_ranges):
+        ax0.legend(series_names)
+    else:
+        ax0.legend([f'Spectrum {i+1:02d}' for i in range(len(S_v_ranges))])
+
     # plot any additionally provided points
     if len(plot_pts) > 0:
         [ax0.plot(T, v, marker = 'o') for T,v in plot_pts]
@@ -240,60 +270,140 @@ def tripartite_plot(
     return fig0
 
 
-def response_spectrum_plots(T_range, PS_a_ranges, titles, plot_pts=[], **kwargs):
-    """Generates a set of pseudo response spectrum plots based on spectral acceleration (units of g)
+def response_spectrum_plots(T_ranges, PS_a_ranges, series_names, 
+                            plot_pts=[], debug=False, **kwargs):
+    """Generates a set of pseudo response spectrum plots based on 
+    spectral acceleration (units of g)
 
     Args:
-        T_range (list[float]: time values - it is assumed that the range is the same for all plots
-        PS_a_ranges: pseudo spectral acceleration (assumed to be in units of g)
-        titles (list[str]): one title for each S_a_range
+        T_ranges (list[float]: time values - it is assumed that the 
+            range is the same for all plots 
+        PS_a_ranges: pseudo spectral acceleration (assumed to be 
+            in units of g)
+        series_names (list[str]): one title for each S_a_range
         plot_pts (list[tuple,list]): (T, S_v) points for plotting 
         kwargs: parameters for passing through to? Nowhere at present
     """
     figsize = kwargs.get('figsize', (10,15))
     suptitle = kwargs.get('suptitle', '')
     T_max = kwargs.get('T_max', None)
-    
-    if T_max is not None:
-        T_range = [T for T in T_range if T <= T_max]
-        T_num = len(T_range)
-        # PS_a_ranges = [[2 * pi / T * S_v / 9.81 for T, S_v in zip(T_range, S_v_range)] for S_v_range in S_v_ranges]
-        PS_a_ranges = [PS_a_range[:T_num] for PS_a_range in PS_a_ranges]
-    
-    S_v_ranges = [[9.81 * 0.5 / pi * T * PS_a for T, PS_a in zip(T_range, PS_a_range)] for PS_a_range in PS_a_ranges]
-    # PS_a_ranges = [[2 * pi / T * S_v / 9.81 for T, S_v in zip(T_range, S_v_range)] for S_v_range in S_v_ranges]
-    PS_d_ranges = [[0.5 / pi * T * S_v for T, S_v in zip(T_range, S_v_range)] for S_v_range in S_v_ranges]
 
+    if debug: 
+        print()
+        print(f'figsize = {figsize}')
+        print(f'suptitle = {suptitle}')
+        print(f'Number of series_names = len(series_names)\n')
+    
+    # Standardise period and check that numbers align
+    if isinstance(T_ranges[0],(int, float)):
+        if debug: print('(1) T_ranges is a single collection')
+        T_ranges = len(PS_a_ranges) * [T_ranges]
+    elif len(T_ranges) == 1 and isinstance(T_ranges[0],(tuple, list)):
+        if debug: print('(2) T_ranges is a collection containing a single collection')
+        T_ranges = len(PS_a_ranges) * T_ranges
+    elif len(T_ranges) == len(PS_a_ranges):
+        if debug: print('(3) T_ranges is a collection of collections')
+        pass
+    else:
+        pass
+    
+    # DEBUG: print shapes of input collections
+    if debug: 
+        T_ranges_lens = [len(T_range) for T_range in T_ranges]
+        print(f'T_ranges shape: {len(T_ranges)} x {T_ranges_lens}')
+        PS_a_ranges_lens = [len(PS_a_range) for PS_a_range in PS_a_ranges]
+        print(f'PS_a_ranges shape: {len(PS_a_ranges)} x {PS_a_ranges_lens}')
+
+    # CHECK: check that shapes match
+    if not (all(len(PS_a_range) == len(T_range) 
+                for PS_a_range, T_range in zip(PS_a_ranges, T_ranges))):
+        T_ranges_len = [len(T_range) for T_range in T_ranges]
+        PS_a_ranges_len = [len(PS_a_range) for PS_a_range in PS_a_ranges]
+        err_msg = (f'Lengths of curves do not match: ' +
+                   f'\n\tlen(T_ranges) = {T_ranges_len} ' + 
+                   f'\n\tlen(PS_a_ranges) = {PS_a_ranges_len}\n')
+        raise ValueError(err_msg)
+
+    # T_max: truncate collections as necessary
+    if T_max is not None:
+        if debug: print(f'\nTruncation based on T_max = {T_max}:')
+        T_list = []
+        A_list = []
+        for T_range, PS_a_range in zip(T_ranges, PS_a_ranges):
+            ta = [(t, a) for t, a in zip(T_range, PS_a_range) if t <= T_max]
+            tt, aa = zip(*ta)
+            T_list.append(tt)
+            A_list.append(aa)
+        T_ranges = T_list
+        PS_a_ranges = A_list
+        # T_ranges = [T for T in T_ranges if T <= T_max]
+        # T_num = len(T_ranges)
+        # PS_a_ranges = [[2 * pi / T * S_v / 9.81 
+        #                 for T, S_v in zip(T_ranges, S_v_range)] 
+        #                 for S_v_range in S_v_ranges]
+        # PS_a_ranges = [PS_a_range[:T_num] 
+        #                for PS_a_range in PS_a_ranges]
+
+        if debug: 
+            T_ranges_lens = [len(T_range) for T_range in T_ranges]
+            print(f'  T_ranges shape: {len(T_ranges)} x {T_ranges_lens}')
+            PS_a_ranges_lens = [len(PS_a_range) for PS_a_range in PS_a_ranges]
+            print(f'  PS_a_ranges shape: {len(PS_a_ranges)} x {PS_a_ranges_lens}')
+            print()
+    
+    # 
+    S_v_ranges = [[9.81 * 0.5 / pi * T * PS_a 
+                   for T, PS_a in zip(T_range, PS_a_range)] 
+                   for T_range, PS_a_range in zip(T_ranges, PS_a_ranges)]
+    # PS_a_ranges = [[2 * pi / T * S_v / 9.81 
+    #                 for T, S_v in zip(T_ranges, S_v_range)] 
+    #                 for S_v_range in S_v_ranges]
+    PS_d_ranges = [[0.5 / pi * T * S_v 
+                    for T, S_v in zip(T_range, S_v_range)] 
+                    for T_range, S_v_range in zip(T_ranges, S_v_ranges)]
+
+    # DEBUG
+    if debug: print(f'\n -- preparing plot --')
+
+    # Preparing plot
     figs, (ax1, ax2, ax3, ax4) = plt.subplots(4,figsize=figsize)
     if len(suptitle) > 0:
         figs.suptitle(suptitle)
     figs.tight_layout()
 
-    [ax1.plot(T_range, PS_a_range, label=s_c) for s_c, PS_a_range in zip(titles, PS_a_ranges)]
+    # DEBUG
+    if debug: print(f'\n -- starting to plot --')
+
+    # Plotting
+    [ax1.plot(T_range, PS_a_range) 
+     for T_range, PS_a_range in zip(T_ranges, PS_a_ranges)]
     ax1.grid(True)
-    ax1.legend(titles)
+    ax1.legend(series_names)
     ax1.set_ylabel(f'Acceleration (g)')
     ax1.set_xlim((0,T_max))
     ax1.set_ylim((0,None))
         
-    [ax2.plot(T_range, S_v_range, label=s_c) for s_c, S_v_range in zip(titles, S_v_ranges)]
+    [ax2.plot(T_range, S_v_range) 
+     for T_range, S_v_range in zip(T_ranges, S_v_ranges)]
     ax2.grid(True)
-    ax2.legend(titles)
+    ax2.legend(series_names)
     ax2.set_ylabel(f'Velocity (m/s)')
     ax2.set_xlim((0,T_max))
     ax2.set_ylim((0,None))
     
-    [ax3.plot(T_range, PS_d_range, label=s_c) for s_c, PS_d_range in zip(titles, PS_d_ranges)]
+    [ax3.plot(T_range, PS_d_range) 
+     for T_range, PS_d_range in zip(T_ranges, PS_d_ranges)]
     ax3.grid(True)
-    ax3.legend(titles)
+    ax3.legend(series_names)
     ax3.set_xlabel(f'Period (s)')
     ax3.set_ylabel(f'Displacement (m)')
     ax3.set_xlim((0,T_max))
     ax3.set_ylim((0,None))
     
-    [ax4.plot(PS_d_range, PS_a_range, label=s_c) for s_c, PS_d_range, PS_a_range in zip(titles, PS_d_ranges, PS_a_ranges)]
+    [ax4.plot(PS_d_range, PS_a_range) 
+     for PS_d_range, PS_a_range in zip(PS_d_ranges, PS_a_ranges)]
     ax4.grid(True)
-    ax4.legend(titles)
+    ax4.legend(series_names)
     ax4.set_ylabel(f'Acceleration (g)')
     ax4.set_xlabel(f'Displacement (m)')
     ax4.set_xlim((0,None))
@@ -354,18 +464,20 @@ def EQ_plots(TH_dict, RS_dict):
 
 
 
-def EQ_plot(eq, TH_dict, RS_dict, eq_dirs, eq_date = '', suptitle = '', rs_xlim = (0, None)):
+def EQ_plot(eq, TH_dict, RS_dict, eq_dirs, eq_date = '', 
+            suptitle = '', rs_xlim = (0, None)):
     """Plots earthquake motion data for ground accelerations and 
     response spectra in a 3x2 grid and prints to file (SVG & PNG).
     
     'eq' is the key to the relevant earthquake in the dictionaries 
     generated by the ASC_import2 function
-    'eq_dirs' must be keys in the dictionary referring to direction for each record, 
+    'eq_dirs' must be keys in the dictionary referring to direction 
+    for each record, 
         e.g. 'E', 'N', 'U'
     """
     
     S_a_ranges = []
-    titles = []
+    series_names = []
 
     th_dict = TH_dict[eq]
     rs_dict = RS_dict[eq]
@@ -396,7 +508,7 @@ def EQ_plot(eq, TH_dict, RS_dict, eq_dirs, eq_date = '', suptitle = '', rs_xlim 
         S_a_ranges.append([a / 980.665 for a in aE]) # assumes cm/s^2
         ax[1].plot(tE, aE, lt, color=color)
         ax[1].set_title(f'Response Spectrum - {eqd}')
-        titles.append(f'{eq_date} ({eqd})')
+        series_names.append(f'{eq_date} ({eqd})')
         ax[1].set_xlabel(rs_dict.get('xlabel', 'Period (s)'))
         ax[1].set_ylabel(rs_dict.get('ylabel', 'Acceleration'))
         ax[1].set_xlim(rs_xlim)
