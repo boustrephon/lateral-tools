@@ -519,3 +519,56 @@ def EQ_plot(eq, TH_dict, RS_dict, eq_dirs, eq_date = '',
     fig.savefig(eq + '.png')
 
     return fig
+
+
+# def plot_EC8_spectra(a_gR, site_class, source_type=1, 
+#                     importance=1.0, q=None, beta=0.2, damp=0.05, T=None, plot_pts=[], 
+#                     figsize=(12,9), debug=False, **kwargs):
+#     """Spectral horizontal elastic acceleration (EC8, section 3.2.2.2, 
+#     Table 3.2 & 3.3, eq 3.2 - 3.5).
+
+#     Args:
+#         T: period or list of periods (self-generated range if T=None)
+#         a_gR: reference peak ground acceleration on type A ground (in units of g)
+#         soil_type: A to E
+#         source_type: type is 1 if M_s >= 5.5 else 2 (ref: 3.2.2.2(2P))
+#         importance: default is 1.0 (ref:2.1(2-3,P))
+#         damp: should be as a decimal not as a percentage (e.g. 0.05 for 5 % damping)
+    
+#     Returns:
+#         T_s_list: tuple of tuple of periods, T & tuple of spectral accelerations (g) 
+
+#     """
+#     x_limits = kwargs.pop('x_limits', (None, None))
+#     y_limits = kwargs.pop('y_limits', (None, None))
+
+#     Te_range, Se_range = S_e(T, a_gR, site_class, source_type, 
+#                                 importance=importance, damp=damp)
+#     legend = ['Elastic Spectrum']
+#     fig0, ax0 = plt.subplots(figsize=figsize)
+#     ax0.set_title(f'EC8 Soil Type {site_class}')
+#     ax0.set_xlabel('Building Period (s)')
+#     ax0.set_ylabel('Base Shear Coefficient (g)')
+#     ax0.plot(Te_range, Se_range)
+#     ax0.grid(True)
+#     ax0.set_xlim(*x_limits)
+#     ax0.set_ylim(*y_limits)
+#     if q is not None:
+#         Td_range, Sd_range = S_d(T, a_gR, site_class, source_type, 
+#                                     importance=importance, beta=beta, q=q)
+#         ax0.plot(Td_range, Sd_range) 
+#         legend.append(f'Design Spectrum (q={q})')
+#     if len(plot_pts) > 0:
+#         s_e = S_e(plot_pts, a_gR, site_class, source_type, 
+#                     importance=importance, damp=damp)
+#         ax0.plot(plot_pts, s_e)
+#         if q is not None:
+#             s_d = S_d(plot_pts, a_gR, site_class, source_type, 
+#                         importance=importance, beta=beta, q=q)
+#             ax0.plot(plot_pts, s_d)
+#             if debug: print(f's_d is {s_d}')
+    
+    
+#     ax0.legend(legend)
+
+#     return fig0
