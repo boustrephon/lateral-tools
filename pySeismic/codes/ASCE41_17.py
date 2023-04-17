@@ -23,14 +23,14 @@ TODO:
 
 """
 
-from math import log, pi, sin, cos, tan, acos, asin, atan, atan2, log, log10
+from math import pi, sin, cos, tan, acos, asin, atan, atan2, log, log10
 from itertools import accumulate
 
 from pySeismic.utilities import printt, interp, list_interp, \
     storey_force_coeffs, storey_force_distribution, storey_forces, \
     storey_shear_moment, shear_coords
 from pySeismic.importing import k_gen # Eq 4-2a
-from pySeismic.codes import site_coeffs as ASCE7_16_site_coeffs
+from pySeismic.codes.ASCE7_16 import site_coeffs as ASCE7_16_site_coeffs
 
 
 #=== The following functions may be found in the utilities module ===#
@@ -263,7 +263,7 @@ def S_a_func(T, S_s, S_1, site_class, T_L = 12.0, damp = 0.05):
 
 # Simplified Rehabilitation
 # Table 3-4  ASCE41-17 Limitations on Use of the Tier 1 & Tier 2 Procedures (number of storeys)
-# No Limit (NL) = 0, Not Permitted (NP) = -1
+# No Limit (NL) = -1, Not Permitted (NP) = 0
 struct_types_full_dict = {
 'W1': {'Description':'Light Wood Frames', 
        ('Very Low', 'S-5'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-5'):-1, ('Low', 'S-1'):4, 
@@ -398,14 +398,6 @@ table_4_2_dict_17 = {
 }
 
 
-# Table 4-2. Default Compressive Strengths (f'c) of Structural Concrete (ksi)
-table_4_2_dict_17 = {
-             (1920, 1949): {'Beams': 2.0, 'Slabs and Columns': 2.0, 'Walls': 2.0},
-             (1950, 1969): {'Beams': 3.0, 'Slabs and Columns': 3.0, 'Walls': 2.5},
-             (1970, 3000): {'Beams': 3.0, 'Slabs and Columns': 3.0, 'Walls': 3.0},    
-}
-
-
 # Table 4-3. Default Yield Strengths (fy) of Reinforcing Steel (ksi)
 # The dictionary keys are the start & end dates as a tuple,
 # and the sub-keys are the steel grade in ksi
@@ -413,9 +405,9 @@ table_4_2_dict_17 = {
 #   became obsolete in 1968.
 table_4_3_dict_17 = {
              (1911, 1959): {33:True, 40:True, 50:True, 60:False, 65:True, 70:False, 75:False},
-             (1960, 1966): {33:True, 40:True, 50:True, 60:True, 65:True, 70:True, 75:True},
-             (1967, 1987): {33:False, 40:True, 50:True, 60:True, 65:True, 70:True, 75:False},
-             (1988, 3000): {33:False, 40:True, 50:True, 60:True, 65:True, 70:True, 75:True},
+             (1959, 1966): {33:True, 40:True, 50:True, 60:True, 65:True, 70:True, 75:True},
+             (1966, 1987): {33:False, 40:True, 50:True, 60:True, 65:True, 70:True, 75:False},
+             (1987, 3000): {33:False, 40:True, 50:True, 60:True, 65:True, 70:True, 75:True},
              }
 
 
