@@ -12,19 +12,6 @@ from itertools import accumulate
 # printt, interp, list_interp, 
 
 
-def printt(table, h1 = 20, h2 = 12, h3 = 4):
-    """
-    Printing tables where first column is text and the remainder are floats
-    h1 is the width of the text column, 
-    h2 is the width of all other columns
-    h3 is the number of decimal places
-    """
-    for line in table:
-        print(f'{line[0]:{h1}s}', end = ' ')
-        [print(f'{item:{h2-h3}.{h3}f}', end = ' ') for item in line[1:]]
-    return None
-
-
 def interp(x, x1, x2, y1, y2):
     """Returns an interpolated y-value for a line 
     between two points (x1, y1) and (x2, y2)
@@ -39,17 +26,18 @@ def interp(x, x1, x2, y1, y2):
         return y1 + (x - x1) / (x2 - x1) * (y2 - y1)
 
 
-def list_interp(val, list_1, list_2):
+def list_interp(val, list_1, list_2, extrapolate=False):
     """Returns interpolated values from list_2 based 
     on values related to list_1, returning the bookends 
     if the provided values are outside the range of 
-    list_1. If any of the values are None, it will 
-    return None.
+    list_1 and if `extrapolate` is False. If any of 
+    the values are None, it will return `None`.
     
     val is the lookup value
     list_1 is the lookup list
     list_2 is the result list with values corresponding 
         to those on list_1
+    extrapolate is the option to extrapolate linearly
     
     >>> list_interp(val, list_1, list_2)
     """
@@ -59,10 +47,18 @@ def list_interp(val, list_1, list_2):
         return list_2[i_list[0]]
     elif val <= list_1[0]:
         # if lookup value is lower than all in list_1
-        return list_2[0]
+        if extrapolate:
+            vals = list_1[:2] + list_2[:2]
+            return interp(val, *vals)
+        else:
+            return list_2[0]
     elif val >= list_1[-1]:
         # if lookup value is higher than all in list_1
-        return list_2[-1]
+        if extrapolate:
+            vals = list_1[-2:] + list_2[-2:]
+            return interp(val, *vals)
+        else:
+            return list_2[-1]
     else:
         # carry out interpolation
         index_list = [i for i, (x1, x2) 
@@ -199,3 +195,150 @@ def shear_coords(elevs, shears):
         out.append(l_1.pop()) if l_1 else None
     return out[::-1]
 
+
+# =======================================
+# ======= Printing Functions ============
+# =======================================
+
+from os.path import exists, abspath
+from itertools import accumulate
+from csv import reader, excel_tab
+from tkinter import filedialog
+from tkinter import *
+
+
+def as_float(x):
+    try:
+        return float(x)        
+    except:
+        return x
+
+
+def import_storey_data(file_path, delimiter=','):
+    """
+    Importing 4-column data from CSV file
+    First column is assumed to be keys (storey names) and
+    other three are required to be numeric. Any row containing
+    non-numeric data in the last three columns will be ignored
+    """
+    if file_path is None:
+        root = Tk()
+        root.filename =  filedialog.askopenfilename(
+            initialdir = "/", title = "Select file", 
+            filetypes = (("csv files","*.csv"),("all files","*.*"))
+            )
+        file_path = root.filename
+        root.destroy()
+
+    print(f'Building data file path is "{file_path}"')
+    print(f'File EXISTS' if exists(file_path) else f'File NOT found')
+
+    with open(file_path, newline='') as csvfile:
+        csv_reader = reader(csvfile, dialect = 'excel', delimiter=delimiter)
+        data = [r for r in csv_reader]
+    
+    # _, b, c, d = data[0]
+    # storey_headers = data[0] if not all([isinstance(as_float(x), float) 
+    #                                         for x in (b, c, d)]) else []
+    
+    storey_data = [[a, float(b), float(c), float(d)] 
+                for a,b,c,d in data if all([isinstance(as_float(x), float) 
+                                            for x in (b, c, d)])]
+    
+    return storey_data
+
+
+def print_table(table, h1 = 20, h2 = 12, h3 = 4):
+    """
+    Printing tables where first column is text and the remainder are floats
+    h1 is the width of the text column, 
+    h2 is the width of all other columns
+    h3 is the number of decimal places
+    """
+    for line in table:
+        print(f'{line[0]:{h1}s}', end = ' ')
+        [print(f'{item:{h2-h3}.{h3}f}', end = ' ') for item in line[1:]]
+    return None
+
+
+def print_storey_data(
+        storey_elevs_m, 
+        storey_weights_kN, 
+        storey_names = [], 
+        base_level_m = 0,
+        ascending = True):
+    """Prints out storey data
+    All data should be for ascending height. The base level should 
+    not be included in the data, except as the `base_level_m` value.
+    
+    """
+    if ascending:
+        storey_elevs_m.reverse()
+        storey_weights_kN.reverse()
+        storey_names.reverse()
+    
+    storey_heights_m = [h2 - h1 for h2, h1 in zip(storey_elevs_m, list(storey_elevs_m[1:]) + [base_level_m])]
+    storey_masses_kg = [1000 * w / 9.80665 for w in storey_weights_kN] # convert kN to kg
+
+    if len(storey_weights_kN) == len(storey_elevs_m) == len(storey_names):
+        pass
+    else:
+        storey_names = [f'L{i:04d}' for i, _ in enumerate(storey_elevs_m)]
+        pass
+        
+    basic_f = 'Height is {:.2f}m, total mass is {:8,.0f} tonne, total weight is {:8,.0f} kN\n'
+    print(basic_f.format(max(storey_elevs_m), 0.001 * sum(storey_masses_kg), sum(storey_weights_kN)))
+
+    tit_f = '{:20s} {:9s} {:10s} {:10s} {:10s}'
+    print(tit_f.format('Storey', 'Ht. (m)', 'Elev (m)', 'Mass (kg)', 'Weight (kN)'))
+    num_f = '{:20s} {:6.3f}   {:8.3f}   {:>10,.0f}   {:8,.0f}'
+    [print(num_f.format(n, h, e, m, w)) for n, h, e, m, w in zip(storey_names, storey_heights_m, 
+                                                    storey_elevs_m, storey_masses_kg, storey_weights_kN)]
+    # base_level = f'{base_level_m:8.3f}'
+    # print(base_level)
+    print(tit_f.format('BASE', '------', f'{base_level_m:7.3f}  ', '   ------', '   ------'))
+
+    return None
+
+
+def print_storey_force_data(
+        V_kN, 
+        storey_elevs_m, 
+        storey_weights_kN, 
+        storey_names = [], 
+        k = 1,
+        base_level_m = 0,
+        ascending = True
+        ):
+    """Calculates and prints out storey force data
+    All data should be for ascending height. The base level should 
+    not be included in the data, except as the `base_level_m` value.
+    
+    """
+    if ascending:
+        list(storey_elevs_m).reverse()
+        list(storey_weights_kN).reverse()
+        list(storey_names).reverse()
+    
+    storey_heights_m = [h2 - h1 for h2, h1 in zip(storey_elevs_m, list(storey_elevs_m[1:]) + [base_level_m])]
+    # storey_masses_kg = [1000 * w / 9.80665 for w in storey_weights_kN] # convert kN to kg
+
+    if len(storey_weights_kN) == len(storey_elevs_m) == len(storey_names):
+        pass
+    else:
+        storey_names = [f'L{i:04d}' for i, _ in enumerate(storey_elevs_m)]
+        pass
+
+    k = 2
+    storey_force_coeff_list = storey_force_coeffs(storey_elevs_m, storey_weights_kN, k)
+    storey_loads_kN = storey_force_distribution(V_kN, storey_elevs_m, storey_weights_kN, k)
+
+    storey_shears_kN, storey_moments_kNm = storey_shear_moment(storey_loads_kN, storey_heights_m, False)
+
+    tit_f = '{:20s} {:9s} {:10s} {:10s} {:10s} {:10s} {:10s}'
+    print(tit_f.format('Storey', 'Elevs (m)', 'Weights (kN)', ' Coeffs ', 'Forces (kN)', 'Shears (kN)', 'Moments (kNm)'))
+    num_f = '{:20s} {:8.2f}   {:8,.0f}   {:8.4f}   {:8,.0f}   {:>10,.0f}   {:>10,.0f}'
+    [print(num_f.format(n, h, wt, c, f, s, m)) for n, h, wt, c, f, s, m in zip(storey_names, storey_elevs_m, storey_weights_kN, 
+                            storey_force_coeff_list, storey_loads_kN, storey_shears_kN, storey_moments_kNm)]
+    print(tit_f.format('BASE', f'{base_level_m:8.3f} ', '   ------', '   ------', '   ------', '   ------', '   ------'))
+    

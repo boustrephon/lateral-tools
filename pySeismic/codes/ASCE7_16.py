@@ -48,19 +48,14 @@ F_v_dict = {'A': (0.8,0.8,0.8,0.8,0.8,0.8),
            'F': (None,None,None,None,None,None)}
 
 
-def site_coeffs(site_class, S_s, S_1):
+def site_coeffs(site_class, S_s, S_1, debug=False):
     """Returns F_a, F_v when provided with 
-    site class (A-F) and S_s and S_1 values
+    site class (A-F) and S_s and S_1 values (ASCE 7-16)
     """
     F_a_list = F_a_dict[site_class]
     F_v_list = F_v_dict[site_class]
-    if any([x is None for x in F_a_list + F_v_list]):
-        err_msg = f'None response may indicate invalid\n' + \
-            f'lookup of tables 11.4-1&2 \n' + \
-            f' - see ASCE 7-16 section 11.4.8\n' + \
-            f'F_a values are {F_a_list} and \n' + \
-            f'F_v values are {F_v_list}'
-        raise ValueError(err_msg)
+    if debug:
+        print(f'site_class = {site_class}; S_s = {S_s}; S_1 = {S_1}; F_a = {F_a_list}; F_v = {F_v_list}')
     return list_interp(S_s, F_a_headers, F_a_list), list_interp(S_1, F_v_headers, F_v_list)
 
 
