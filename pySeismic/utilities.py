@@ -167,28 +167,39 @@ def storey_force_distribution(V, elev_list, weight_list, k = 1.0):
     return [w * h**k * V / divisor for w, h in zip(weight_list, elev_list)]
 
 
-def storey_forces(force_list, rev = True):
+def storey_forces(force_list, ascending = True):
     """Returns a list of accumulated storey forces - i.e. storey shears
     NB lists have to be reversed before applying the accumulate function"""
-    shear_list_rev = accumulate(force_list[::-1] if rev else force_list)
-    return list(shear_list_rev)[::-1] if rev else list(shear_list_rev)
+    shear_list_desc = accumulate(force_list[::-1] if ascending else force_list)
+    return list(shear_list_desc)[::-1] if ascending else list(shear_list_desc)
 
 
-def storey_shear_moment(force_list, height_list, rev = True):
-    """Returns a tuple of lists containing storey shear and storey moment
-    (from ground up, increasing z if 'rev' is True)"""
-    shear_list_rev = list(accumulate(force_list[::-1] if rev else force_list))
-    v_h_rev = [v * h for v, h in zip(shear_list_rev, height_list[::-1] if rev else height_list)]
-    mom_list_rev = list(accumulate([0]+v_h_rev[:-1]))
-    return shear_list_rev[::-1] if rev else shear_list_rev, mom_list_rev[::-1] if rev else mom_list_rev
+def storey_shear_moment(force_list, height_list, ascending = True, debug=False):
+    """
+    Returns a tuple of lists containing storey shear and storey moment
+    (from ground up, increasing z if 'ascending' is True)
+
+    Note that the shear and moment should be considered to be at
+    the bottom of each storey
+    """
+    shear_list_desc = list(accumulate(force_list[::-1] if ascending else force_list))
+    v_h_desc = [v * h for v, h in zip(shear_list_desc, height_list[::-1] if ascending else height_list)]
+    mom_list_desc = list(accumulate(v_h_desc))
+    if debug: print(mom_list_desc[-1], '=?', sum(f * z for f, z in zip(
+            accumulate(height_list) if ascending else accumulate(height_list[::-1]), 
+            force_list if ascending else force_list[::-1])))
+    return shear_list_desc[::-1] if ascending else shear_list_desc, mom_list_desc[::-1] if ascending else mom_list_desc
 
 
-def shear_coords(elevs, shears):
+def shear_coords(elevs, shears, base_level = 0):
     """Returns a list of (z,V) tuples for plotting storey shear diagrams
-    Inputs are lists of elevations and shear values
+    Inputs are lists of elevations and shear values.
+    The list of elevations should not include the base level
     NB. Interleaving is required because of the steps in the shear diagram"""
-    l_1 = list(zip(elevs[1:],shears[1:]))
-    l_2 = list(zip(elevs,shears[1:] + [0.0]))
+    # l_1 = list(zip(elevs[1:],shears[1:]))
+    # l_2 = list(zip(elevs,shears[1:] + [0.0]))
+    l_1 = list(zip(elevs,shears))
+    l_2 = list(zip(list(elevs)[1:] + [base_level], shears))
     out = []
     while l_2:
         out.append(l_2.pop()) if l_2 else None
@@ -284,19 +295,21 @@ def print_storey_data(
         pass
     else:
         storey_names = [f'L{i:04d}' for i, _ in enumerate(storey_elevs_m)]
-        pass
+        storey_names.reverse()
         
     basic_f = 'Height is {:.2f}m, total mass is {:8,.0f} tonne, total weight is {:8,.0f} kN\n'
     print(basic_f.format(max(storey_elevs_m), 0.001 * sum(storey_masses_kg), sum(storey_weights_kN)))
 
-    tit_f = '{:20s} {:9s} {:10s} {:10s} {:10s}'
-    print(tit_f.format('Storey', 'Ht. (m)', 'Elev (m)', 'Mass (kg)', 'Weight (kN)'))
+    tit_f1 = '{:20s} {:9s} {:10s} {:10s} {:10s}'
+    tit_f2 = '{:20s} {:9s} {:10s} {:>10,.0f} {:8,.0f}'
+    print(tit_f1.format('Storey', 'Ht. (m)', 'Elev (m)', 'Mass (kg)', 'Weight (kN)'))
     num_f = '{:20s} {:6.3f}   {:8.3f}   {:>10,.0f}   {:8,.0f}'
     [print(num_f.format(n, h, e, m, w)) for n, h, e, m, w in zip(storey_names, storey_heights_m, 
                                                     storey_elevs_m, storey_masses_kg, storey_weights_kN)]
     # base_level = f'{base_level_m:8.3f}'
     # print(base_level)
-    print(tit_f.format('BASE', '------', f'{base_level_m:7.3f}  ', '   ------', '   ------'))
+    print(tit_f2.format('BASE', '------', f'{base_level_m:7.3f}  ', sum(storey_masses_kg), sum(storey_weights_kN)))
+    print()
 
     return None
 
@@ -327,18 +340,22 @@ def print_storey_force_data(
         pass
     else:
         storey_names = [f'L{i:04d}' for i, _ in enumerate(storey_elevs_m)]
-        pass
+        storey_names.reverse()
 
-    k = 2
+    k = k
     storey_force_coeff_list = storey_force_coeffs(storey_elevs_m, storey_weights_kN, k)
     storey_loads_kN = storey_force_distribution(V_kN, storey_elevs_m, storey_weights_kN, k)
 
     storey_shears_kN, storey_moments_kNm = storey_shear_moment(storey_loads_kN, storey_heights_m, False)
 
-    tit_f = '{:20s} {:9s} {:10s} {:10s} {:10s} {:10s} {:10s}'
-    print(tit_f.format('Storey', 'Elevs (m)', 'Weights (kN)', ' Coeffs ', 'Forces (kN)', 'Shears (kN)', 'Moments (kNm)'))
+    tit_f1 = '{:20s} {:9s} {:10s} {:10s} {:10s} {:10s} {:10s}'
+    print(tit_f1.format('Storey', 'Elevs (m)', 'Weights (kN)', ' Coeffs ', 'Forces (kN)', 'Shears (kN)', 'Moments (kNm)'))
     num_f = '{:20s} {:8.2f}   {:8,.0f}   {:8.4f}   {:8,.0f}   {:>10,.0f}   {:>10,.0f}'
     [print(num_f.format(n, h, wt, c, f, s, m)) for n, h, wt, c, f, s, m in zip(storey_names, storey_elevs_m, storey_weights_kN, 
-                            storey_force_coeff_list, storey_loads_kN, storey_shears_kN, storey_moments_kNm)]
-    print(tit_f.format('BASE', f'{base_level_m:8.3f} ', '   ------', '   ------', '   ------', '   ------', '   ------'))
+                            storey_force_coeff_list, storey_loads_kN, storey_shears_kN, [0] + storey_moments_kNm[:-1])]
+    tit_f2 = '{:20s} {:8.2f} {:10s} {:12s} {:10s} {:12s} {:>10,.0f}'
+    print(tit_f2.format('BASE', base_level_m, '    ------', '    ------', ' ------   ', '  ------  ', storey_moments_kNm[-1]))
+    tit_f3 = '{:20s} {:10s} {:8,.0f} {:10.4f} {:10,.0f} {:14s} {:12s}'
+    print(tit_f3.format('SUM ', '  ------', sum(storey_weights_kN), sum(storey_force_coeff_list), sum(storey_loads_kN), '     ------', '     ------'))
     
+    return None

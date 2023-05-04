@@ -80,6 +80,11 @@ Behaviour factors (q) are defined for different structural types:
 
 """
 
+from typing import Union, Dict, List, Tuple
+
+
+def version():
+    return 'code: BS EN 1998-1:2004 BS EN 1998-1:2004+A1:2013 \nmodule version: 0.9'
 
 concrete_structural_system_dict = {
     'CF1S': {'Description': 'one-storey frame system', 
@@ -214,10 +219,11 @@ def get_q_ss(
 def get_q(
         structural_system: str, 
         ductility_class: str,
+        elev_regular: bool = False, 
+        plan_regular: bool = False, 
         alpha_0: float = 0.5, 
         alpha_ratio: float = None, 
-        plan_regular: bool = False, 
-        elev_regular: bool = False, 
+        debug: bool = False, 
     ) -> float:
     """EC8 Behaviour factor q0
 
@@ -240,46 +246,58 @@ def get_q(
             CWTF - torsionally flexible wall system
             CIPS - inverted pendulum system
         ductility_class: low, medium or high (DCL, DCM or DCH)
+        elev_regular: whether structural system is regular (default is False)
+            (see 4.2.3.1(7), 4.2.3.3 and Table 4.1)
+        plan_regular: whether structural system is regular (default is False)
+            (see 4.2.3.2 and Table 4.1)
         alpha_0: prevailing aspect ratio of the walls of
             the structural system - sum(h_wi) / sum(l_wi)
             h_wi is height of wall i
             l_wi is length of wall i
-        alpha_ratio: this value can be calculated directly 
-            (see 5.2.2.2(4)) or based on 5.2.2.2(5)
-        plan_regular: whether structural system is regular (default is False)
-            (see 4.2.3.2 and Table 4.1)
-        elev_regular: whether structural system is regular (default is False)
-            (see 4.2.3.1(7), 4.2.3.3 and Table 4.1)
+        alpha_ratio: alpha_u / alpha_1 override - this value can be 
+            calculated directly (see 5.2.2.2(4)) - default is from 5.2.2.2(5)
     Returns:
         q: behaviour factor
     """
     prop_dict = concrete_structural_system_dict.get(structural_system,{})
+    if debug: print(prop_dict.get('Description'))
     if alpha_ratio is None:
         alpha_ratio = prop_dict.get('alpha_ratio')
         if plan_regular is False:
             alpha_ratio = 0.5 * (1 + alpha_ratio)
     ar_limit = min(1.5, alpha_ratio )
+
+    if debug: print(f'- alpha_ratio={alpha_ratio}, ar_limit={ar_limit}, ', end='')
+    
     if ductility_class == 'DCH':
         alphaH = prop_dict.get('alphaH')
-        q0 = prop_dict.get('DCH', 1.5) * (ar_limit if alphaH else 1.0)
+        q0_basic = prop_dict.get('DCH', 1.5)
+        if debug: print(f'alphaH={alphaH}, q0_basic={q0_basic}, ', end='')
+        q0 = q0_basic * (ar_limit if alphaH else 1.0)
     elif ductility_class == 'DCM':
         alphaM = prop_dict.get('alphaM')
-        q0 = prop_dict.get('DCM', 1.5) * (ar_limit if alphaM else 1.0)
+        q0_basic = prop_dict.get('DCM', 1.5)
+        if debug: print(f'alphaM={alphaM}, q0_basic={q0_basic}, ', end='')
+        q0 = q0_basic * (ar_limit if alphaM else 1.0)
     else:
-        q0 = prop_dict.get('DCL', 1.5)
+        q0_basic = prop_dict.get('DCL', 1.5)
+        if debug: print(f'q0_basic={q0_basic}, ', end='')
+        q0 = q0_basic
     
     k_w = prop_dict.get('k_w')
     if k_w is None:
         k_w = max(0.5, min((1 + alpha_0)/3, 1.0))
     
     regularity_factor = 1.0 if (elev_regular and plan_regular) else 0.8
-
+    if debug: print(f'regularity_factor={regularity_factor}, ', end='')
+    
     q = max(1.5, q0 * k_w * regularity_factor)
+    if debug: print(f'q={q:4.3f}')
+    
     return q
 
 
 from math import pi
-from typing import Union, Any, Optional, cast
 
 
 importance_classes = ['I', 'II', 'III', 'IV']
@@ -302,7 +320,7 @@ importance_factor_dict = {
 
 def get_importance_factor(
         importance_class: str, 
-        importance_factor_dict: dict[str, float] = importance_factor_dict
+        importance_factor_dict: Dict[str, float] = importance_factor_dict
         ) -> float:
     """EC8 importance factor I_E
     
@@ -352,7 +370,7 @@ table_3_4_vert_dict = {
 }
 
 
-Table_type_AA = dict[str, dict[str, float]]
+Table_type_AA = Dict[str, Dict[str, float]]
 
 
 def get_eta(zeta=0.05):
@@ -370,73 +388,106 @@ def get_period_EC8(height_m, building_type='Other'):
 
 
 
-# def get_period_range(T_B:float, T_C:float, T_D:float, T_max:float=10, 
+# def get_EC8_period_range(T_B:float, T_C:float, T_D:float, T_max:float=10, 
 #                     n:int=20, T_add:Any=None) -> tuple[float]:
 
-def get_period_range(T_B:float, 
-                     T_C:float, 
-                     T_D:float, 
-                     T_max:float=10, 
-                     n:int=20, 
-                     T_add: Union[int, float, 
-                           list[Union[int, float], tuple[Union[int, float]]]] = None
-                    ) -> tuple[float]:
-    """"""
+def get_EC8_period_range(
+        T_B:float, 
+        T_C:float, 
+        T_D:float, 
+        T_max:float=10, 
+        n:int=20, 
+        T_add: Union[
+            int, 
+            float, 
+            List[Union[int, float]], 
+            Tuple[Union[int, float]]] = None
+    ) -> Tuple[float]:
+    """Period values consistent with EC8 response spectra
+    
+    Generates monotonically increasing values of period that
+    are consistent with 
+
+    Periods T_B, T_C & T_D are shown on Figure 3.1 
+    "Shape of the elastic response spectrum"
+
+    Args:
+        T_B: Corner period at start of constant acceleration zone
+        T_C: Corner period between constant acceleration 
+            and constant velocity zones
+        T_D: Corner period between constant velocity 
+            and constant displacement zones
+        T_max: Maximum value
+        n_int: number of points per zone
+        T_add: additional points to add to list
+    
+    Returns:
+        T_tuple: 
+    """
     if any([T_B==0, T_C==0, T_D==0]):
         T_list = []
     else:
-        T_list = [0] + \
-            [T_B / n * i for i in range(1, n + 1)] + \
-            [T_B + (T_C - T_B) / n * i for i in range(1, n + 1)] + \
-            [T_C + (T_D - T_C) / n * i for i in range(1, n + 1)] + \
-            [T_D + (T_max - T_D) / n * i for i in range(1, n + 1)]
-    
+        T_list = [0]
+        
+        # Create list of corner points
+        corner_list = [T for T in (0, T_B, T_C, T_D) if T < T_max]
+        corner_list.append(T_max)
+        
+        # build up ranges of numbers in each zone
+        for T1, T2 in zip(corner_list[:-1], corner_list[1:]):
+            T2 = T_max if T2 > T_max else T2
+            T_list.extend(
+                [T1 + (T2 - T1) / n * i for i in range(1, n + 1)]
+            )
+
+
     if isinstance(T_add, (int, float)):
-        return tuple(sorted(T_list + [T_add]))
+        T_tuple = tuple(sorted(T_list + [T_add]))
     elif isinstance(T_add, (list, tuple)):
-        return tuple(sorted(T_list + T_add))
+        T_tuple = tuple(sorted(T_list + T_add))
     else:
-        return tuple(T_list)
-    
-
-def set_period_range(T, T_B=0, T_C=0, T_D=0):
-    """Returns a 
-
-    If T is None, the a suitable range of periods will be defined that 
-        will plot well (i.e. will hit all the corner points)
-    If T is one negative value, then it will be added to the range so 
-        that the curve is defined there
-    If T is one positive value, then it will be the only value returned
-    If T is a collection (tuple or list), then those points will be 
-        used to define the range for plotting
-
-    Arg:
-
-    """
-    if isinstance(T, (tuple, list)):
-        T_tuple = tuple(T)
-    elif isinstance(T, (int, float)):
-        if T < 0:
-            T_tuple = get_period_range(T_B, T_C, T_D, T_add=-T)
-        else:
-            T_tuple = (T,)
-    elif T is None:
-        T_tuple = get_period_range(T_B, T_C, T_D)
-    else:
-        raise ValueError('T should be an int, float or collection of ints and/or floats')
-    
+        T_tuple = tuple(T_list)
     return T_tuple
+    
+
+# def set_period_range(T, T_B=0, T_C=0, T_D=0):
+#     """Returns a 
+
+#     If T is None, the a suitable range of periods will be defined that 
+#         will plot well (i.e. will hit all the corner points)
+#     If T is one negative value, then it will be added to the range so 
+#         that the curve is defined there
+#     If T is one positive value, then it will be the only value returned
+#     If T is a collection (tuple or list), then those points will be 
+#         used to define the range for plotting
+
+#     Arg:
+
+#     """
+#     if isinstance(T, (tuple, list)):
+#         T_tuple = tuple(T)
+#     elif isinstance(T, (int, float)):
+#         if T < 0:
+#             T_tuple = get_EC8_period_range(T_B, T_C, T_D, T_add=-T)
+#         else:
+#             T_tuple = (T,)
+#     elif T is None:
+#         T_tuple = get_EC8_period_range(T_B, T_C, T_D)
+#     else:
+#         raise ValueError('T should be an int, float or collection of ints and/or floats')
+    
+#     return T_tuple
 
 
-def S_e(T:Union[float,tuple[float]], 
+def S_e(T:Union[float,Tuple[float],List[float]], 
         a_gR:float, 
-        soil_type:str, 
+        site_class:str, 
         source_type:int, 
-        importance:float=1.0, 
-        damp:float=0.05,
+        importance:float = 1.0, 
+        damp:float = 0.05,
         table_3_2_type1_dict: Table_type_AA = table_3_2_type1_dict,
-        table_3_3_type2_dict: Table_type_AA = table_3_3_type2_dict
-        ) -> Union[float, tuple[tuple[float], tuple[float]]]:
+        table_3_3_type2_dict: Table_type_AA = table_3_3_type2_dict,
+        ) -> Union[float, Tuple[Tuple[float], Tuple[float]]]:
     """EC8 spectral horizontal elastic acceleration 
     
     Returns the EC8 spectral horizontal elastic acceleration (section 3.2.2.2, 
@@ -445,7 +496,7 @@ def S_e(T:Union[float,tuple[float]],
     Args:
         T: period or list of periods
         a_gR: reference peak ground acceleration on type A ground (in units of g)
-        soil_type: A to E
+        site_class: A to E
         source_type: type is 1 if M_s >= 5.5 else 2 (ref: 3.2.2.2(2P))
         importance: default is 1.0 (ref:2.1(2-3,P))
         damp: should be as a decimal not as a percentage (default is 0.05 for 5 % damping)
@@ -458,9 +509,9 @@ def S_e(T:Union[float,tuple[float]],
         T_s_list: tuple of tuple of periods, T & tuple of spectral accelerations (g) 
     """
     if source_type == 1:
-        p_dict = table_3_2_type1_dict.get(soil_type, {})
+        p_dict = table_3_2_type1_dict.get(site_class, {})
     elif source_type == 2:
-        p_dict = table_3_3_type2_dict.get(soil_type, {})
+        p_dict = table_3_3_type2_dict.get(site_class, {})
     else:
         return {}
     if p_dict is {}:
@@ -470,39 +521,76 @@ def S_e(T:Union[float,tuple[float]],
     a_g = importance * a_gR
     eta = 1.0 if damp == 0.05 else get_eta(damp)
     eta_max = 2.5 * eta
-
-    # Create a collection of periods for which S is to be calculated
-    T_tuple = set_period_range(T, T_B=T_B, T_C=T_C, T_D=T_D)
-
+    
     s_list = []
     
-    for T in T_tuple:
-        if T < T_B:
-            s_list.append(a_g * S * (1 + T / T_B * (eta_max - 1.0)))
-        elif T <= T_C:
+    T = T if isinstance(T, (list, tuple)) else [T]
+    for t in T:
+        if t < T_B:
+            s_list.append(a_g * S * (1 + t / T_B * (eta_max - 1.0)))
+        elif t <= T_C:
             s_list.append(a_g * S * eta_max)
-        elif T <= T_D: 
-            s_list.append(a_g * S * eta_max * T_C / T)
+        elif t <= T_D: 
+            s_list.append(a_g * S * eta_max * T_C / t)
         else:
-            s_list.append(a_g * S * eta_max * T_C * T_D / (T * T))
+            s_list.append(a_g * S * eta_max * T_C * T_D / (t * t))
     
-    T_s_list = (T_tuple, tuple(s_list)) if len(s_list) > 1 else s_list[0]
+    T_s_list = (T, tuple(s_list)) if len(s_list) > 1 else s_list[0]
+    
     return T_s_list
     
 
-def S_De(T, a_gR, soil_type, source_type, importance=1.0, damp=0.05):
-    """ elastic displacement response spectrum (EC8, eq 3.7)"""
-    return S_e(T, a_gR, soil_type, source_type, 
-               importance=importance, damp=damp) * (0.5 * T / pi)**2.0
+def S_De(
+        T, 
+        a_gR, 
+        site_class, 
+        source_type, 
+        importance=1.0, 
+        damp=0.05,
+        table_3_2_type1_dict: Table_type_AA = table_3_2_type1_dict,
+        table_3_3_type2_dict: Table_type_AA = table_3_3_type2_dict,
+        ) -> Union[float, Tuple[Tuple[float], Tuple[float]]]:
+    """EC8 elastic displacement response spectrum (EC8, eq 3.7)
+    
+    Returns the EC8 spectral elastic displacement (eq 3.7)
+
+    Args:
+        T: period or list of periods
+        a_gR: reference peak ground acceleration on type A ground (in units of g)
+        site_class: A to E
+        source_type: type is 1 if M_s >= 5.5 else 2 (ref: 3.2.2.2(2P))
+        importance: default is 1.0 (ref:2.1(2-3,P))
+        damp: should be as a decimal not as a percentage (default is 0.05 for 5 % damping)
+        table_3_2_type1_dict: dictionary of dictionaries 
+            containing 'S', 'T_B', 'T_C', 'T_D' values for all soil types (source type 1)
+        table_3_3_type2_dict: dictionary of dictionaries 
+            containing 'S', 'T_B', 'T_C', 'T_D' values for all soil types (source type 2)
+    
+    Returns:
+        T_sd_list: tuple of tuple of periods, T & tuple of spectral displacements (m) 
+    """
+    T_s_list = S_e(T, a_gR, site_class, source_type, 
+                importance=importance, damp=damp,
+                table_3_2_type1_dict = table_3_2_type1_dict,
+                table_3_3_type2_dict = table_3_3_type2_dict,
+                )
+    if isinstance(T_s_list, (int, float)):
+        T_sd_list = T_s_list * (0.5 * T / pi)**2.0
+    else:
+        sd_list = [s_a * (0.5 * T / pi)**2.0 for T, s_a in zip(*T_s_list)]
+        T_sd_list = (T, tuple(sd_list))
+    return T_sd_list
 
 
-def S_d(T:Union[float,tuple[float]], 
+def S_d(T:Union[float, List[float], Tuple[float]], 
         a_gR:float, 
-        soil_type:str, 
+        site_class:str, 
         source_type:int, 
         importance:float=1.0, 
         beta:float=0.2, 
         q:float=1.5, 
+        table_3_2_type1_dict: Table_type_AA = table_3_2_type1_dict,
+        table_3_3_type2_dict: Table_type_AA = table_3_3_type2_dict,
         ) -> Union[float, tuple[tuple[float], tuple[float]]]:
     """EC8 spectral horizontal design acceleration
 
@@ -511,22 +599,30 @@ def S_d(T:Union[float,tuple[float]],
     Args:
         T: period or list of periods
         a_gR: reference peak ground acceleration on type A ground (in units of g)
-        soil_type: A to E
+        site_class: A to E
         source_type: type is 1 if M_s >= 5.5 else 2 (ref: 3.2.2.2(2P))
         importance: default is 1.0 (ref:2.1(2-3,P))
         beta: minimum base shear percentage, from NAD (default is 0.2)
-        q: 
+        q: force reduction factor which are defined for different structural types:
+            - concrete: section 5.2.2 & 5.3.3
+            - precast concrete: section 5.11.1.4
+            - steel: section 6.3.2
+            - composite steel: 7.3.2
+            - timber: 8.3
+            - masonry: 9.3
+            - base isolation: 10.7
+        table_3_2_type1_dict: dictionary of dictionaries 
+            containing 'S', 'T_B', 'T_C', 'T_D' values for all soil types (source type 1)
+        table_3_3_type2_dict: dictionary of dictionaries 
+            containing 'S', 'T_B', 'T_C', 'T_D' values for all soil types (source type 2)
     
     Returns:
-        T_s_list: tuple of tuple of periods, T & tuple of spectral accelerations (g) 
-    
-    source_type is either 1 or 2
-    damp should be as a decimal not as a percentage (e.g. 0.05 for 5 % damping)
+        T_s_list: tuple of tuple of periods, T & tuple of spectral accelerations (g)
     """
     if source_type == 1:
-        p_dict = table_3_2_type1_dict.get(soil_type, {})
+        p_dict = table_3_2_type1_dict.get(site_class, {})
     elif source_type == 2:
-        p_dict = table_3_3_type2_dict.get(soil_type, {})
+        p_dict = table_3_3_type2_dict.get(site_class, {})
     else:
         return {}
     if p_dict is {}:
@@ -537,27 +633,33 @@ def S_d(T:Union[float,tuple[float]],
     eta = 1.0 / q
     eta_max = 2.5 * eta
     
-    # Create a collection of periods for which S is to be calculated
-    T_tuple = set_period_range(T, T_B=T_B, T_C=T_C, T_D=T_D)
-    
+    T = T if isinstance(T, (list, tuple)) else [T]
+
     s_list = []
     
     # Note that `eta_max` is actually 2.5/ `q`
-    for T in T_tuple:
-        if T < T_B:
-            s_list.append(a_g * S * (2/3 + T / T_B * (eta_max - 2/3)))
-        elif T <= T_C:
+    for t in T:
+        if t < T_B:
+            s_list.append(a_g * S * (2/3 + t / T_B * (eta_max - 2/3)))
+        elif t <= T_C:
             s_list.append(a_g * S * eta_max)
-        elif T <= T_D: 
-            s_list.append(a_g * max(beta, S * eta_max * T_C / T))
+        elif t <= T_D: 
+            s_list.append(a_g * max(beta, S * eta_max * T_C / t))
         else:
-            s_list.append(a_g * max(beta, S * eta_max * T_C * T_D / (T * T)))
+            s_list.append(a_g * max(beta, S * eta_max * T_C * T_D / (t * t)))
     
-    T_s_list = (T_tuple, tuple(s_list)) if len(s_list) > 1 else s_list[0]
+    T_s_list = (T, tuple(s_list)) if len(s_list) > 1 else s_list[0]
     return T_s_list
     
 
-def S_ve(T, a_gR, source_type, importance=1.0, damp=0.05):
+def S_ve(
+        T:Union[float,list[float],tuple[float]], 
+        a_gR: float, 
+        source_type: int, 
+        importance:float = 1.0, 
+        damp: float = 0.05,
+        table_3_4_vert_dict: Table_type_AA = table_3_4_vert_dict,
+        ):
     """EC8 spectral vertical elastic acceleration (S_ve)
     
     EC8 spectral vertical elastic acceleration (S_ve, section 3.2.2.3, 
@@ -571,7 +673,9 @@ def S_ve(T, a_gR, source_type, importance=1.0, damp=0.05):
         importance: default is 1.0 (ref:2.1(2-3,P))
         damp: inherent damping. Should be as a decimal not as a percentage 
             (default is 0.05 for 5 % damping)
-    
+        table_3_4_vert_dict: dictionary of dictionaries 
+            containing 'S', 'T_B', 'T_C', 'T_D' values for source types 1 & 2
+
     Returns:
         T_s_list: tuple of tuple of periods, T & tuple of spectral accelerations (g) 
     """
@@ -582,35 +686,42 @@ def S_ve(T, a_gR, source_type, importance=1.0, damp=0.05):
     else:
         p_dict = {}
     
-    S, T_B, T_C, T_D = [p_dict[p] for p in ('S', 'T_B', 'T_C', 'T_D', )]
+    avg_ag, T_B, T_C, T_D = [p_dict[p] for p in ('avg_ag', 'T_B', 'T_C', 'T_D', )]
     a_g = importance * a_gR
+    a_vg = avg_ag * a_g
     eta = 1.0 if damp == 0.05 else get_eta(damp)
     eta_max = 3.0 * eta
     
-    # Create a collection of periods for which S is to be calculated
-    T_tuple = set_period_range(T, T_B=T_B, T_C=T_C, T_D=T_D)
-    
+    T = T if isinstance(T, (list, tuple)) else [T]
+
     s_list = []
     
-    for T in T_tuple:
-        if T < T_B:
-            s_list.append(a_g * S * (1 + T / T_B * (eta_max - 1.0)))
-        elif T <= T_C:
-            s_list.append(a_g * S * eta_max)
-        elif T <= T_D: 
-            s_list.append(a_g * S * eta_max * T_C / T)
+    for t in T:
+        if t < T_B:
+            s_list.append(a_vg * (1 + t / T_B * (eta_max - 1.0)))
+        elif t <= T_C:
+            s_list.append(a_vg * eta_max)
+        elif t <= T_D: 
+            s_list.append(a_vg * eta_max * T_C / t)
         else:
-            s_list.append(a_g * S * eta_max * T_C * T_D / (T * T))
+            s_list.append(a_vg * eta_max * T_C * T_D / (t * t))
     
-    T_s_list = (T_tuple, tuple(s_list)) if len(s_list) > 1 else s_list[0]
+    T_s_list = (T, tuple(s_list)) if len(s_list) > 1 else s_list[0]
     return T_s_list
 
-def S_vd(T, 
-         a_gR, 
-         source_type, 
-         importance=1.0, 
-         beta=0.2, 
-         q=1.0):
+
+# Create a collection of periods for which S is to be calculated
+# T_tuple = get_EC8_period_range(T_B=T_B, T_C=T_C, T_D=T_D, T_add=T)
+
+
+def S_vd(T: Union[float,list[float],tuple[float]], 
+        a_gR: float, 
+        source_type: int, 
+        importance: float = 1.0, 
+        beta:float = 0.2, 
+        q:float = 1.0, 
+        table_3_4_vert_dict: Table_type_AA = table_3_4_vert_dict,
+         ):
     """EC8 spectral vertical design acceleration
     
     EC8 spectral vertical design acceleration (S_ve, section 3.2.2.5(5-7), 
@@ -620,11 +731,16 @@ def S_vd(T,
         and `eta` is actually 1 / `q`
 
     Args:
-        T:  is period or collection of periods
-        source_type: is either 1 or 2
+        T: period or collection of periods
+        a_gR: reference peak ground acceleration on type A ground (in units of g)
+        source_type: type is 1 if M_s >= 5.5 else 2 (ref: 3.2.2.2(2P))
+        importance: default is 1.0 (ref:2.1(2-3,P))
+        beta: minimum base shear percentage, from NAD (default is 0.2)
         q: behaviour factor. Note that this is likely to be different 
             from horizontal q and should not be taken 
             as higher than 1.5 without appropriate analysis (3.2.2.5(6))
+        table_3_4_vert_dict: dictionary of dictionaries 
+            containing 'S', 'T_B', 'T_C', 'T_D' values for source types 1 & 2
         
     """
     if source_type == 1:
@@ -632,41 +748,64 @@ def S_vd(T,
     elif source_type == 2:
         p_dict = table_3_4_vert_dict['type2']
     else:
-        return {}
+        return None
     
-    S, T_B, T_C, T_D = [p_dict[p] for p in ('S', 'T_B', 'T_C', 'T_D', )]
+    avg_ag, T_B, T_C, T_D = [p_dict[p] for p in ('avg_ag', 'T_B', 'T_C', 'T_D', )]
     a_g = importance * a_gR
+    a_vg = avg_ag * a_g
     eta = 1.0 / q
-    eta_max = 2.5 * eta
+    eta_max = 3.0 * eta
     
     # Create a collection of periods for which S is to be calculated
-    T_tuple = set_period_range(T, T_B=T_B, T_C=T_C, T_D=T_D)
+    # T_tuple = get_EC8_period_range(T_B=T_B, T_C=T_C, T_D=T_D, T_add=T)
     
+    T = T if isinstance(T, (list, tuple)) else [T]
+
     s_list = []
     
-    for T in T_tuple:
+    for t in T:
         # Note that `eta_max` is actually 2.5/ `q`
-        if T < T_B:
-            s_list.append(a_g * S * (2/3 + T / T_B * (eta_max - 2/3)))
-        elif T <= T_C:
-            s_list.append(a_g * S * eta_max)
-        elif T <= T_D: 
-            s_list.append(a_g * max(beta, S * eta_max * T_C / T))
+        if t < T_B:
+            s_list.append(a_vg * (2/3 + t / T_B * (eta_max - 2/3)))
+        elif t <= T_C:
+            s_list.append(a_vg * eta_max)
+        elif t <= T_D: 
+            s_list.append(a_vg * max(beta, eta_max * T_C / t))
         else:
-            s_list.append(a_g * max(beta, S * eta_max * T_C * T_D / (T * T)))
+            s_list.append(a_vg * max(beta, eta_max * T_C * T_D / (t * t)))
     
-    return (T_tuple, tuple(s_list)) if len(s_list) > 1 else s_list[0]
+    return (T, tuple(s_list)) if len(s_list) > 1 else s_list[0]
     
 
-def get_d_g(a_gR, soil_type, source_type, importance=1.0, damp=0.05):
-    """Ground displacement (EC8 eq 3.12)
-    source_type is either 1 or 2
-    damp should be as a decimal not as a percentage (e.g. 0.05 for 5 % damping)
+def get_d_g(
+        a_gR: float, 
+        site_class: str, 
+        source_type: int, 
+        importance: float = 1.0, 
+        table_3_2_type1_dict: Table_type_AA = table_3_2_type1_dict,
+        table_3_3_type2_dict: Table_type_AA = table_3_3_type2_dict,
+            ) -> float:
+    """EC8 design horizontal ground displacement (eq 3.12)
+
+    Returns EC8 design horizontal ground displacement in metres (section 3.2.2.4)
+
+    Args:
+        a_gR: reference peak ground acceleration on type A ground (in units of g)
+        site_class: A to E
+        source_type: type is 1 if M_s >= 5.5 else 2 (ref: 3.2.2.2(2P))
+        importance: default is 1.0 (ref:2.1(2-3,P))
+        table_3_2_type1_dict: dictionary of dictionaries 
+            containing 'S', 'T_B', 'T_C', 'T_D' values for all soil types (source type 1)
+        table_3_3_type2_dict: dictionary of dictionaries 
+            containing 'S', 'T_B', 'T_C', 'T_D' values for all soil types (source type 2)
+    
+    Returns:
+        d_g: ground displacement (m)
     """
     if source_type == 1:
-        p_dict = table_3_2_type1_dict.get(soil_type, {})
+        p_dict = table_3_2_type1_dict.get(site_class, {})
     elif source_type == 2:
-        p_dict = table_3_3_type2_dict.get(soil_type, {})
+        p_dict = table_3_3_type2_dict.get(site_class, {})
     else:
         return {}
     if p_dict is {}:
@@ -675,7 +814,8 @@ def get_d_g(a_gR, soil_type, source_type, importance=1.0, damp=0.05):
     S, _, T_C, T_D = [p_dict[p] for p in ('S', 'T_B', 'T_C', 'T_D', )]
     a_g = importance * a_gR
 
-    return 0.025 * a_g * S * T_C * T_D
+    d_g = 0.025 * a_g * S * T_C * T_D
+    return d_g
 
 
 # Plotting
@@ -684,9 +824,21 @@ try:
     import matplotlib.pyplot as plt
 
 
-    def plot_EC8_spectra(a_gR, site_class, source_type=1, 
-                        importance=1.0, q=None, beta=0.2, damp=0.05, T=None, plot_pts=[], 
-                        figsize=(12,9), debug=False, **kwargs):
+    def plot_EC8_spectra(
+            a_gR:float, 
+            site_class:str, 
+            source_type:int = 1, 
+            importance:float = 1.0, 
+            q:Union[float, list[float], tuple[float]] = None, 
+            beta:float = 0.2, 
+            damp:float = 0.05, 
+            T:Union[int, float] = None, 
+            plot_pts:Union[float, list[float]] = [], 
+            figsize:tuple[int, int] = (12,9), 
+            table_3_2_type1_dict: Table_type_AA = table_3_2_type1_dict,
+            table_3_3_type2_dict: Table_type_AA = table_3_3_type2_dict,
+            **kwargs:dict
+            ):
         """Spectral horizontal elastic acceleration (EC8, section 3.2.2.2, 
         Table 3.2 & 3.3, eq 3.2 - 3.5).
 
@@ -699,36 +851,76 @@ try:
             q: force reduction factor (may be an individual value or collection of values)
             damp: should be as a decimal not as a percentage (e.g. 0.05 for 5 % damping)
             T: a period where a result should be plotted
+            plot_pts: adds points to the plot calculating spectral acceleration
+                for elastic and every q-value
+            figsize: size of plot in points (default is (12,9))
+            table_3_2_type1_dict: dictionary of dictionaries 
+                containing 'S', 'T_B', 'T_C', 'T_D' values for all soil types (source type 1)
+            table_3_3_type2_dict: dictionary of dictionaries 
+                containing 'S', 'T_B', 'T_C', 'T_D' values for all soil types (source type 2)
+    
         
         Returns:
-            T_s_list: tuple of tuple of periods, T & tuple of spectral accelerations (g) 
+            T_s_list: tuple of tuple of periods, T and tuple of spectral accelerations (g) 
 
         """
         x_limits = kwargs.pop('x_limits', (None, None))
         y_limits = kwargs.pop('y_limits', (None, None))
+        plot_title = kwargs.pop('plot_title', f'EC8 Site Class {site_class}')
+        debug = kwargs.pop('debug', False)
 
-        Te_range, Se_range = S_e(T, a_gR, site_class, source_type, 
+        if source_type == 1:
+            p_dict = table_3_2_type1_dict.get(site_class, {})
+        elif source_type == 2:
+            p_dict = table_3_3_type2_dict.get(site_class, {})
+        else:
+            return {}
+        if p_dict is {}:
+            return {}
+    
+        _, T_B, T_C, T_D = [p_dict[p] for p in ('S', 'T_B', 'T_C', 'T_D', )]
+    
+        T_tuple = get_EC8_period_range(T_B=T_B, T_C=T_C, T_D=T_D, T_add=T)
+        Te_range, Se_range = S_e(T_tuple, a_gR, site_class, source_type, 
                                  importance=importance, damp=damp)
         legend = ['Elastic Spectrum']
         fig0, ax0 = plt.subplots(figsize=figsize)
-        ax0.set_title(f'EC8 Soil Type {site_class}')
+        ax0.set_title(f'EC8 Site Class {site_class}')
         ax0.set_xlabel('Building Period (s)')
         ax0.set_ylabel('Base Shear Coefficient (g)')
         ax0.plot(Te_range, Se_range)
         ax0.grid(True)
         ax0.set_xlim(*x_limits)
         ax0.set_ylim(*y_limits)
+        fig0.suptitle(plot_title)
+        
         if isinstance(q, (int, float)):
-            Td_range, Sd_range = S_d(T, a_gR, site_class, source_type, 
+            Td_range, Sd_range = S_d(T_tuple, a_gR, site_class, source_type, 
                                      importance=importance, beta=beta, q=q)
             ax0.plot(Td_range, Sd_range) 
             legend.append(f'Design Spectrum (q={q})')
         elif isinstance(q, (tuple, list)):
             for q0 in q:
-                Td_range, Sd_range = S_d(T, a_gR, site_class, source_type, 
+                Td_range, Sd_range = S_d(T_tuple, a_gR, site_class, source_type, 
                                         importance=importance, beta=beta, q=q0)
                 ax0.plot(Td_range, Sd_range) 
                 legend.append(f'Design Spectrum (q={q0})')
+        
+        ax0.legend(legend)
+
+        if isinstance(T, (int, float)):
+            s_e = S_e(T, a_gR, site_class, source_type, importance=1.0, damp=damp)
+            # print(f's_e is {s_e:.3f}')
+            ax0.plot(T, s_e, marker='o', mec = 'C0', mfc = 'C0')
+            if isinstance(q, (int, float)):
+                s_d = S_d(T, a_gR, site_class, source_type, importance=1.0, beta=beta, q=q)
+                ax0.plot(T, s_d, marker='o', mec = 'C1', mfc = 'C1')
+            elif isinstance(q, (tuple, list)):
+                for i, q0 in enumerate(q):
+                    s_d = S_d(T, a_gR, site_class, source_type, importance=1.0, beta=beta, q=q0)
+                    ax0.plot(T, s_d, marker='o', mec = f'C{i+1}', mfc = f'C{i+1}')
+                # print(f's_d is {s_d:.3f}')
+    
         if len(plot_pts) > 0:
             s_e = S_e(plot_pts, a_gR, site_class, source_type, 
                       importance=importance, damp=damp)
@@ -744,11 +936,10 @@ try:
                             importance=importance, beta=beta, q=q0)
                     ax0.plot(plot_pts, s_d)
                     if debug: print(f's_d is {s_d} for q={q0}')
-        
-        ax0.legend(legend)
-
+            else:
+                pass        
         return fig0
 
 except:
-    def plot_EC8_spectra():
+    def plot_EC8_spectra(**kwargs):
         print("MatPlotLib library is not available")
