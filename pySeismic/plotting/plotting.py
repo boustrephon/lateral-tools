@@ -4,6 +4,7 @@ be generated elsewhere, for example from eqsigs.
 
 """
 
+from typing import Union, List, Tuple, Dict
 from math import log, pi, sin, cos, tan, acos, asin, atan, atan2, log, log10
 from itertools import accumulate
 import matplotlib.pyplot as plt
@@ -572,3 +573,104 @@ def EQ_plot(eq, TH_dict, RS_dict, eq_dirs, eq_date = '',
 #     ax0.legend(legend)
 
 #     return fig0
+
+
+from pySeismic.utilities import storey_force_distribution, \
+    storey_shear_moment, shear_coords
+from matplotlib.ticker import EngFormatter
+
+def plot_storey_VM(
+        base_shears: Union[float, List, Tuple], 
+        storey_elevs: Union[List[float], Tuple[float]], 
+        storey_wts: Union[List[float], Tuple[float]], 
+        k:float = 1, 
+        base_level: float = 0, 
+        **kwargs: Dict):
+    """
+    
+    Args:
+        base_shears: base shear(s)
+        storey_elevs: storey elevations
+        storey_wts:  
+        k: (default = 1)
+        base_level: (default = 0), 
+        **kwargs
+    
+    Returns:
+        fig: Storey shear and moment plot
+    """
+
+    # x_limits = kwargs.pop('x_limits', (0, None))
+    # y_limits = kwargs.pop('y_limits', (0, None))
+    plot_title = kwargs.pop('plot_title', f'Building Shears & Moments')
+    figsize = kwargs.pop('figsize', (6,8))
+    force_units = kwargs.pop('force_units', 'kN')
+    length_units = kwargs.pop('length_units', 'm')
+    debug = kwargs.pop('debug', False)
+
+    force_scale_dict = {'N':1.0, 'kN':1000.0, 'MN':1.0E6, 'GN':1.0E9}
+    length_scale_dict = {'mm':0.001, 'cm':0.01, 'm':1.0, 'km':1000.0}
+    V_scale = force_scale_dict.get(force_units)
+    M_scale = length_scale_dict.get(length_units) * V_scale
+
+    if list(storey_elevs) == sorted(storey_elevs):
+        ascending = True
+    elif list(storey_elevs) == sorted(storey_elevs, reverse=True):
+        ascending = False
+    else:
+        raise ValueError('Storey elevations are not monotonic')
+    
+    if ascending:
+        storey_elevs = storey_elevs[::-1]
+        storey_wts = storey_wts[::-1]
+
+    storey_heights = [z2 - z1 for z2, z1 in zip(
+        storey_elevs, 
+        list(storey_elevs[1:]) + [0]
+        )]
+
+    V = base_shears if isinstance(base_shears, (list, tuple)) else [base_shears]
+
+    storey_loads = [storey_force_distribution(
+        vv, storey_elevs, storey_wts, k) for vv in V]
+    
+    storey_shears_and_moments = [storey_shear_moment(
+        forces, storey_heights, ascending) for forces in storey_loads]
+    storey_shears, storey_moments = zip(*storey_shears_and_moments)
+
+    z_V = [shear_coords(
+        storey_elevs, V, base_level) for V in storey_shears]
+
+    fig, [ax_V, ax_M] = plt.subplots(nrows=1, ncols=2, figsize=figsize)
+    fig.suptitle(plot_title)
+
+    ax_V.invert_xaxis()
+    for z_VV in z_V:
+        z_range, V_range = zip(*z_VV)
+        V_range = [V_scale * V for V in V_range]
+        ax_V.plot([0] + list(V_range), list(z_range[:1]) + list(z_range))
+    ax_V.set_xlim((None, 0))
+    ax_V.set_title('Storey Shear')
+    ax_V.set_xlabel('Shear')
+    formatterV = EngFormatter(unit='N')
+    ax_V.xaxis.set_major_formatter(formatterV)
+
+    for M_range in storey_moments:
+        M_range = [M_scale * M for M in M_range]
+        ax_M.plot([0] + M_range, list(storey_elevs) + [0])
+    ax_M.set_xlim((0, None))
+    ax_M.set_title('Storey Moment')
+    ax_M.set_xlabel('Moment')
+    formatterM = EngFormatter(unit='Nm')
+    ax_M.xaxis.set_major_formatter(formatterM)
+    
+    for ax in (ax_V, ax_M):
+        ax.set_ylim((0, None))
+        ax.minorticks_on()
+        ax.grid(True, which='major', linestyle='-', linewidth=0.5)
+        ax.grid(True, which='minor', linestyle='--', linewidth=0.25)
+        ax.tick_params(axis='x', rotation=45)
+
+
+    fig.set_tight_layout(True)
+    return fig

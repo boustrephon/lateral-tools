@@ -382,7 +382,20 @@ def get_eta(zeta=0.05):
 def get_period_EC8(height_m, building_type='Other'):
     """
     
+    Args:
+        height_m: building height in metres
+        building_type: (default 'Other')
+            'Steel_MRF' - steel moment-resisting frame
+            'RCMRF' - reinforced concrete moment-resisting frame
+            'Other' - other building types
+    
+    Returns:
+        period: empirical building period (seconds)
     """
+    # SMF_group = ('CF1S','CF1B','CFMB')
+    CMF_group = ('CF1S','CF1B','CFMB')
+    building_type = 'RCMRF' if (building_type in CMF_group) else building_type
+    building_type = 'Steel_MRF' if building_type.startswith('S') else building_type
     C_t_dict = {'Steel_MRF': 0.085, 'RCMRF': 0.075, 'Other':0.05}
     return C_t_dict.get(building_type, 0.05) * height_m ** 0.75
 
@@ -832,7 +845,7 @@ try:
             q:Union[float, list[float], tuple[float]] = None, 
             beta:float = 0.2, 
             damp:float = 0.05, 
-            T:Union[int, float] = None, 
+            T:Union[int, float, List[float], Tuple[float]] = None, 
             plot_pts:Union[float, list[float]] = [], 
             figsize:tuple[int, int] = (12,9), 
             table_3_2_type1_dict: Table_type_AA = table_3_2_type1_dict,
@@ -864,8 +877,8 @@ try:
             T_s_list: tuple of tuple of periods, T and tuple of spectral accelerations (g) 
 
         """
-        x_limits = kwargs.pop('x_limits', (None, None))
-        y_limits = kwargs.pop('y_limits', (None, None))
+        x_limits = kwargs.pop('x_limits', (0, None))
+        y_limits = kwargs.pop('y_limits', (0, None))
         plot_title = kwargs.pop('plot_title', f'EC8 Site Class {site_class}')
         debug = kwargs.pop('debug', False)
 
@@ -885,14 +898,19 @@ try:
                                  importance=importance, damp=damp)
         legend = ['Elastic Spectrum']
         fig0, ax0 = plt.subplots(figsize=figsize)
-        ax0.set_title(f'EC8 Site Class {site_class}')
+        ax0.set_title(f'Spectral Accelerations')
         ax0.set_xlabel('Building Period (s)')
         ax0.set_ylabel('Base Shear Coefficient (g)')
         ax0.plot(Te_range, Se_range)
-        ax0.grid(True)
         ax0.set_xlim(*x_limits)
         ax0.set_ylim(*y_limits)
         fig0.suptitle(plot_title)
+        ax0.minorticks_on()
+        ax0.grid(True, which='major', linestyle='-', linewidth=0.5)
+        ax0.grid(True, which='minor', linestyle='--', linewidth=0.25)
+        # ax0.tick_params(axis='x', rotation=45)
+
+        
         
         if isinstance(q, (int, float)):
             Td_range, Sd_range = S_d(T_tuple, a_gR, site_class, source_type, 
@@ -908,36 +926,39 @@ try:
         
         ax0.legend(legend)
 
-        if isinstance(T, (int, float)):
-            s_e = S_e(T, a_gR, site_class, source_type, importance=1.0, damp=damp)
+        T = T if isinstance(T, (list, tuple)) else [T]
+        
+        for t in T:
+            s_e = S_e(t, a_gR, site_class, source_type, importance=1.0, damp=damp)
             # print(f's_e is {s_e:.3f}')
-            ax0.plot(T, s_e, marker='o', mec = 'C0', mfc = 'C0')
+            ax0.plot(t, s_e, marker='o', mec = 'C0', mfc = 'C0')
             if isinstance(q, (int, float)):
-                s_d = S_d(T, a_gR, site_class, source_type, importance=1.0, beta=beta, q=q)
-                ax0.plot(T, s_d, marker='o', mec = 'C1', mfc = 'C1')
+                s_d = S_d(t, a_gR, site_class, source_type, importance=1.0, beta=beta, q=q)
+                ax0.plot(t, s_d, marker='o', mec = 'C1', mfc = 'C1')
             elif isinstance(q, (tuple, list)):
                 for i, q0 in enumerate(q):
-                    s_d = S_d(T, a_gR, site_class, source_type, importance=1.0, beta=beta, q=q0)
-                    ax0.plot(T, s_d, marker='o', mec = f'C{i+1}', mfc = f'C{i+1}')
+                    s_d = S_d(t, a_gR, site_class, source_type, importance=1.0, beta=beta, q=q0)
+                    ax0.plot(t, s_d, marker='o', mec = f'C{i+1}', mfc = f'C{i+1}')
                 # print(f's_d is {s_d:.3f}')
     
-        if len(plot_pts) > 0:
-            s_e = S_e(plot_pts, a_gR, site_class, source_type, 
-                      importance=importance, damp=damp)
-            ax0.plot(plot_pts, s_e)
-            if isinstance(q, (int, float)):
-                s_d = S_d(plot_pts, a_gR, site_class, source_type, 
-                          importance=importance, beta=beta, q=q)
-                ax0.plot(plot_pts, s_d)
-                if debug: print(f's_d is {s_d} for q={q0}')
-            elif isinstance(q, (tuple, list)):
-                for q0 in q:
-                    s_d = S_d(plot_pts, a_gR, site_class, source_type, 
-                            importance=importance, beta=beta, q=q0)
-                    ax0.plot(plot_pts, s_d)
-                    if debug: print(f's_d is {s_d} for q={q0}')
-            else:
-                pass        
+        # if len(plot_pts) > 0:
+        #     s_e = S_e(plot_pts, a_gR, site_class, source_type, 
+        #               importance=importance, damp=damp)
+        #     ax0.plot(plot_pts, s_e)
+        #     if isinstance(q, (int, float)):
+        #         s_d = S_d(plot_pts, a_gR, site_class, source_type, 
+        #                   importance=importance, beta=beta, q=q)
+        #         ax0.plot(plot_pts, s_d)
+        #         if debug: print(f's_d is {s_d} for q={q0}')
+        #     elif isinstance(q, (tuple, list)):
+        #         for q0 in q:
+        #             s_d = S_d(plot_pts, a_gR, site_class, source_type, 
+        #                     importance=importance, beta=beta, q=q0)
+        #             ax0.plot(plot_pts, s_d)
+        #             if debug: print(f's_d is {s_d} for q={q0}')
+        #     else:
+        #         pass        
+        
         return fig0
 
 except:
