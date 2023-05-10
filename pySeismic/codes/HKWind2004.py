@@ -7,12 +7,13 @@ Note that a building is considered to be one with resonant dynamic response if:
   greater than 1.0Hz
 """
 
-from math import pi, sin, cos, tan, acos, asin, atan, atan2, log, log10
+from math import log  #, pi, sin, cos, tan, acos, asin, atan, atan2, log10
 from itertools import accumulate
 
-from pySeismic.utilities import printt, interp, list_interp, \
-    storey_force_coeffs, storey_force_distribution, storey_forces, \
-    storey_shear_moment, shear_coords
+from pySeismic.utilities import list_interp
+# from pySeismic.utilities import print_table, interp, \
+#     storey_force_coeffs, storey_force_distribution, storey_forces, \
+#     storey_shear_moment, shear_coords
 
 
 # ===============================
@@ -249,14 +250,14 @@ def get_R_A(A):
 
 def full_wind_calcs(storey_heights, 
                     storey_widths_x, storey_widths_y, 
-                    print_data=False):
+                    print_data=False, raise_error=True):
     """Returns full set of calculations"""
     # This could be speeded up significantly by using numpy
     #print(f'Bottom storey height is {elevs[0]} m, top storey elevation is {elevs[-1]} m, sum of storeys is {sum(storey_heights)} m')
     dd = {}
     dd['storey_heights'] = storey_heights
 
-    if not isinstance(storey_widths_x, list):
+    if not isinstance(storey_widths_x, (tuple, list)):
         bx_ave = float(storey_widths_x)
         dd['storey_widths_x'] = [bx_ave for n in storey_heights]
     else:
@@ -323,7 +324,10 @@ def full_wind_calcs(storey_heights,
         err_list.append(err_msg)
     if len(err_list) > 0:
         err_msg = '\n'.join(err_list)
-        raise ValueError(err_msg)
+        if raise_error:
+            raise ValueError(err_msg)
+        else:
+            print(err_msg)
 
     ## PRINT RESULTS if print_data is True #######
     if print_data:
