@@ -153,7 +153,8 @@ def read_ASC(
         return None
 
 
-def ASC_import(asc_files, folder=r'./', export=False):
+def ASC_import(asc_files, folder=r'./', 
+               export=False, debug=False):
     """
     Imports a list of ASC files from a single folder and returns 
     a dictionary containing one entry for each file. In other words, 
@@ -196,7 +197,7 @@ def ASC_import(asc_files, folder=r'./', export=False):
             asc_dict['Station'] = station
             asc_dict['Eq_dir'] = eq_dir
             EQ_dict[name] = asc_dict.copy()
-            print(f'{data_type:40s}: File {asc}')
+            if debug: print(f'{data_type:40s}: File {asc}')
             
             # Export data to CSV files
             if export:

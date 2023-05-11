@@ -39,6 +39,7 @@ def tripartite_plot(
     debug=False, 
     figsize=(10,8), 
     suptitle='', 
+    spec_type = 'V',
     minor_lines = [1, 2, 3, 4, 5, 6, 7, 8, 9],
     **kwargs
     ):
@@ -64,7 +65,16 @@ def tripartite_plot(
     """
     # One of the challenges is the need to switch between plain and log10 values
     # 
-    
+    if T_ranges == []:
+        T_ranges, S_v_ranges = reorganise_plot_data(S_v_ranges)
+    if spec_type == 'A':
+        rspec_ag_to_v = lambda T, a: a * 9.81 * T / tau
+        S_v_ranges = [[rspec_ag_to_v(t, sa) 
+            for t, sa in zip(T_range, Sa_range)] 
+            for T_range, Sa_range in zip(T_ranges, S_v_ranges)]
+
+
+
     # Standardise period and check that numbers align
     if isinstance(T_ranges[0],(int, float)):
         T_ranges = len(S_v_ranges) * [T_ranges]
@@ -276,6 +286,7 @@ def tripartite_plot(
                 for T, v, txt in zip(log_Td_values, log_vd_values, d_str)]
     
     # Legend
+    if debug: print(f'Data length: {len(S_v_ranges)}, names:{len(series_names)}')
     if len(series_names) == 0:
         pass
     elif len(series_names) == len(S_v_ranges):
