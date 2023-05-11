@@ -4,12 +4,31 @@ be generated elsewhere, for example from eqsigs.
 
 """
 
-from typing import Union, List, Tuple, Dict
-from math import log, pi, sin, cos, tan, acos, asin, atan, atan2, log, log10
+from typing import Union, List, Tuple, Dict, Any
+from math import log, pi, tau, sin, cos, tan, acos, asin, atan, atan2, log, log10
 from itertools import accumulate
 import matplotlib.pyplot as plt
 import matplotlib.lines as lines
 
+
+def reorganise_plot_data(list_of_lists):
+    """Transposes lists of lists of vectors into lists
+    of tuples of like coordinates.
+    
+    This is a process of transposition. For example, the
+        ((a1,b1),(a2,b2),(a3,b3), ...),
+                    ((c1,d1),(c2,d2),(c3,d3), ...)
+        ->
+        ((a1,a2,a3, ...),(c1,c2,c3, ...)),
+                    ((b1,b2,b3, ...),(d1,d2,d3, ...))
+    This is particularly useful where data is in the form
+    of (x,y) pairs and you have multiple sets of these
+    that you want to plot, but the plot function is looking
+    for lists of x and lists of y and you want to plot multiple
+    sets of these.
+    """
+    transposed_data = zip(*[new_list for new_list in [zip(*each_list) for each_list in list_of_lists]])
+    return transposed_data
 
 
 def tripartite_plot(
@@ -622,6 +641,111 @@ def EQ_plot(TH_data, RS_data,
     return fig
 
 
+def RS_plot(RS_sets:List[List[float]], 
+            data_type:str = 'A', 
+            titles:List[str] = [], 
+            plot_type:str = 'plot',
+            g:float = 9.81, 
+            figsize:Tuple[int,int]=(12,16),
+            **kwargs) -> Any:
+    """
+    Generates three plots of A, V, D Response Spectra
+    
+    Args:
+        RS_sets: these are the response spectra data
+            which should be as lists of lists of (t, s) pairs
+            i.e. if you only want to plot one spectrum you
+            should place it as one item in a list, e.g. [spectrum_data]
+        data_type: Specifies the type of data in the RS_sets:
+            'A', 'V' or 'D' (default is 'A')
+        titles: the number of titles should match the 
+            number of spectra, otherwise generic titles will
+            be substituted
+        plot_type: plot type, either 'plot', 'loglog', 'semilogx'
+            or 'semilogy' (default is 'plot', i.e. linear)
+        g: optional scaling factor to apply to acceleration 
+            spectum data (default 9.81), 
+        figsize: figure size (default is (12,16))
+        
+
+    """
+    xlim = kwargs.get('xlim', (None, None))
+    suptitle = kwargs.get('suptitle', None)
+    
+    if len(titles) != len(RS_sets):
+        titles = [f'Spectrum {i:00d}' for i, _ in enumerate(RS_sets)]
+
+    # Functions, scaling factor for acceleration
+    # note: tau = 2.0 * pi
+    rspec_ag_to_a = lambda T, a: (T, a * g)
+    rspec_ag_to_v = lambda T, a: (T, a * g * T / tau)
+    rspec_v_to_a = lambda T, v: (T, v * tau / T)
+    rspec_a_to_v = lambda T, a: (T, a * T / tau)
+    rspec_v_to_d = lambda T, v: (T, v * T / tau)
+    rspec_d_to_v = lambda T, d: (T, d * tau / T)
+
+    SA_max = []
+    SV_max = []
+    SD_max = []
+
+    fig, axs = plt.subplots(nrows=3, ncols=1, figsize=figsize)
+
+    if plot_type == 'loglog':
+        ax_plot = [ax.loglog for ax in axs]
+    elif plot_type == 'semilogx':
+        ax_plot = [ax.semilogx for ax in axs]
+    elif plot_type == 'semilogy':
+        ax_plot = [ax.semilogy for ax in axs]
+    else:
+        ax_plot = [ax.plot for ax in axs]
+    
+    for T_S in RS_sets:
+        if data_type == 'A':
+            T_SA = [rspec_ag_to_a(t, sa) for t, sa in T_S]
+            T_SV = [rspec_a_to_v(t, sa) for t, sa in T_SA]
+            T_SD = [rspec_v_to_d(t, sv) for t, sv in T_SV]
+        elif data_type == 'V':
+            T_SV = list(T_S)
+            T_SA = [rspec_v_to_a(t, sv) for t, sv in T_SV]
+            T_SD = [rspec_v_to_d(t, sv) for t, sv in T_SV]
+        elif data_type == 'D':
+            T_SD = T_S
+            T_SV = [rspec_d_to_v(t, sd) for t, sd in T_SD]
+            T_SA = [rspec_v_to_a(t, sv) for t, sv in T_SV]
+        
+        SA_max.append(max(T_SA, key=lambda x:x[1]))
+        SV_max.append(max(T_SV, key=lambda x:x[1]))
+        SD_max.append(max(T_SD, key=lambda x:x[1]))
+        
+        # legends = ['2% in 50yrs','10% in 50yrs','50% in 50yrs', 'Peak values']
+        axs[0].grid(True, 'both')
+        ax_plot[0](*list(zip(*T_SA)))
+        axs[0].set_ylabel('Spectral Acceleration (m/s^2)')
+        axs[1].grid(True, 'both')
+        axs[1].set_ylabel('Spectral Velocity (m/s)')
+        ax_plot[1](*list(zip(*T_SV)))
+        axs[2].grid(True, 'both')
+        axs[2].set_xlabel('Period (sec)')
+        axs[2].set_ylabel('Spectral Displacement (m)')
+        ax_plot[2](*list(zip(*T_SD)))
+
+    titles.append('Peak values')
+    ax_plot[0](*zip(*[(t, a) for t, a in SA_max]),'o')
+    axs[0].legend(titles)
+    ax_plot[1](*zip(*[(t, v) for t, v in SV_max]),'o')
+    axs[1].legend(titles)
+    ax_plot[2](*zip(*[(t, d) for t, d in SD_max]),'o')
+    axs[2].legend(titles)
+    # print(*zip(*[(t, a) for t, a in SA_max]))
+    # print(SA_max)
+    # print(SV_max)
+    # print(SD_max)
+    if suptitle is not None:
+        fig.suptitle(suptitle)
+    
+    return fig
+
+
 def EQ_plot_ss(eq, TH_dict, RS_dict, eq_dirs, eq_date = '', 
             suptitle = '', rs_xlim = (0, None)):
     """Plots earthquake motion data for ground accelerations and 
@@ -734,6 +858,9 @@ def EQ_plot_ss(eq, TH_dict, RS_dict, eq_dirs, eq_date = '',
 
 #     return fig0
 
+# ========================================================
+# =================== Storey Plots =======================
+# ========================================================
 
 from pySeismic.utilities import storey_force_distribution, \
     storey_shear_moment, shear_coords

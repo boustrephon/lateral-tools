@@ -18,7 +18,7 @@ from os.path import join, splitext
 # from os.path import exists, isdir, isfile, basename
 from typing import Union, Any, Dict, List, Tuple # , PathLike
 from os.path import exists, basename
-
+import csv
 
 def as_numeric(txt:str, default:Any=None) -> Union[int, float, str]:
     """Converts string to number (int or float), if possible
@@ -71,6 +71,19 @@ def as_float(txt:str, default:Any=None) -> Union[float, str]:
         return float(txt)        
     except:
         return default
+
+
+def read_csv(csv_file, header=1, as_dict=True):
+    with open(csv_file, mode='r') as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=',')
+        data = [row if i < header else [float(row[0]), float(row[1])] for i, row in enumerate(csv_reader)]
+    if as_dict:
+        x_data, y_data = zip(*data)
+        x_key = 'x' if header == 0 else (x_data[0] if header == 1 else tuple(x_data[:header]))
+        y_key = 'y' if header == 0 else (y_data[0] if header == 1 else tuple(y_data[:header]))
+        return {x_key: x_data[header:], y_key: y_data[header:]}
+    else:
+        return data
 
 
 def read_ASC(
