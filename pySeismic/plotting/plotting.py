@@ -11,7 +11,24 @@ import matplotlib.pyplot as plt
 import matplotlib.lines as lines
 
 
-def reorganise_plot_data(list_of_lists):
+List_of_lists = Union[
+    List[List[float]], 
+    List[Tuple[float]], 
+    Tuple[List[float]],
+                            ]
+List_of_list_of_lists = Union[
+    List[List_of_lists],
+    Tuple[List_of_lists],
+                            ]
+List_of_list_of_list_of_lists = Union[
+    List[List_of_list_of_lists],
+    Tuple[List_of_list_of_lists],
+                            ]
+
+
+def reorganise_plot_data(
+        list_of_list_of_lists: List_of_list_of_lists
+        ):
     """Transposes lists of lists of vectors into lists
     of tuples of like coordinates.
     
@@ -27,21 +44,31 @@ def reorganise_plot_data(list_of_lists):
     for lists of x and lists of y and you want to plot multiple
     sets of these.
     """
-    transposed_data = zip(*[new_list for new_list in [zip(*each_list) for each_list in list_of_lists]])
+    transposed_data = zip(
+    *[new_list 
+      for new_list in [zip(*each_list) 
+                       for each_list 
+                       in list_of_list_of_lists]]
+    )
     return transposed_data
 
 
+
 def tripartite_plot(
-    T_ranges, 
-    S_v_ranges, 
-    series_names = [],
-    plot_pts=[], 
-    debug=False, 
-    figsize=(10,8), 
-    suptitle='', 
-    spec_type = 'V',
-    minor_lines = [1, 2, 3, 4, 5, 6, 7, 8, 9],
-    **kwargs
+    T_ranges: Union[List,
+        List_of_list_of_lists,
+        List_of_lists], 
+    S_v_ranges: Union[List_of_list_of_lists,
+                      List_of_list_of_list_of_lists], 
+    series_names: List[str] = [],
+    plot_pts: List[float] = [], 
+    debug: bool = False, 
+    figsize: Tuple[float] = (10,8), 
+    suptitle: str ='', 
+    spec_type: chr = 'V',
+    units: str = None,
+    minor_lines: List[int] = [1, 2, 3, 4, 5, 6, 7, 8, 9],
+    **kwargs,
     ):
     """Plots tripartite data
         minorlines is a list of the minor log lines to plot (default [1,2,3,4,5,6,7,8,9])
@@ -56,12 +83,21 @@ def tripartite_plot(
     * https://matplotlib.org/stable/api/_as_gen/matplotlib.lines.Line2D.html
 
     Args:
-        T_ranges: collection of time values (each as a collection of floats)
-            if there is only one item, it is assumed that the range is the same for all plots
+        T_ranges: collection of time values (each as a collection of 
+            floats) if there is only one item, it is assumed that the 
+            range is the same for all plots. If an empty list is passed
+            to the function, it assumes that all the data is in the
+            PS_a_ranges function as T,S pairs.
         S_v_ranges: collection of spectral velocities (each as a collection of floats)
         series_names (list[str]): one name for each S_v_range
         plot_pts (list[tuple,list]): (T, S_v) points for plotting 
+        debug: if True then some intermediate results are printed to terminal
+        figsize: size of the plot (width, height)  in inches
+        suptitle: main title for the figure
+        spec_type: 
         kwargs: parameters for passing through to `plot`
+    Returns:
+        Figure
     """
     # One of the challenges is the need to switch between plain and log10 values
     # 
@@ -301,16 +337,30 @@ def tripartite_plot(
     return fig0
 
 
-def response_spectrum_plots(T_ranges, PS_a_ranges, series_names, 
-                            plot_pts=[], debug=False, **kwargs):
+def response_spectrum_plots(
+        T_ranges: Union[List,
+            List_of_lists,
+            List_of_list_of_lists
+        ], 
+        PS_a_ranges: Union[List_of_list_of_lists,
+                           List_of_list_of_list_of_lists], 
+        series_names: List[str], 
+        plot_pts: List_of_lists=[], 
+        debug: bool =False, 
+        **kwargs: Dict[str, Any]
+                            ):
     """Generates a set of pseudo response spectrum plots based on 
     spectral acceleration (units of g)
 
     Args:
         T_ranges (list[float]: time values - it is assumed that the 
-            range is the same for all plots 
+            range is the same for all plots. If an empty list is passed
+            to the function, it assumes that all the data is in the
+            PS_a_ranges function as T,S pairs.
         PS_a_ranges: pseudo spectral acceleration (assumed to be 
-            in units of g)
+            in units of g). If Period data is in T_ranges, then data 
+            should be list of list of lists. Otherwise each data point 
+            should be a (T,S) pair.
         series_names (list[str]): one title for each S_a_range
         plot_pts (list[tuple,list]): (T, S_v) points for plotting 
         kwargs: parameters for passing through to? Nowhere at present
@@ -319,6 +369,7 @@ def response_spectrum_plots(T_ranges, PS_a_ranges, series_names,
     suptitle = kwargs.get('suptitle', '')
     T_max = kwargs.get('T_max', None)
 
+
     if debug: 
         print()
         print(f'figsize = {figsize}')
@@ -326,7 +377,17 @@ def response_spectrum_plots(T_ranges, PS_a_ranges, series_names,
         print(f'Number of series_names = len(series_names)\n')
     
     # Standardise period and check that numbers align
-    if isinstance(T_ranges[0],(int, float)):
+    if T_ranges == []:
+        if debug: print('No period data provided')
+        if isinstance(
+            PS_a_ranges, 
+            List_of_list_of_list_of_lists
+            ):
+            T_ranges, PS_a_ranges = reorganise_plot_data(PS_a_ranges)
+        else:
+            if debug: print('No period data provided as part of PS_a_ranges')
+            return None
+    elif isinstance(T_ranges[0],(int, float)):
         if debug: print('(1) T_ranges is a single collection')
         T_ranges = len(PS_a_ranges) * [T_ranges]
     elif len(T_ranges) == 1 and isinstance(T_ranges[0],(tuple, list)):
@@ -463,6 +524,8 @@ def EQ_plots(EQ_dict,
              datatype_key = 'DATA_TYPE', 
              data_key = 'Data',  
              events_list = [],
+             scaling = 1.0 / 9.81,
+             display_units = 'g'
              ):
     """Returns a list of plots based on data in a pair of matching 
     dictionaries of time history and response spectrum
@@ -553,7 +616,9 @@ def EQ_plots(EQ_dict,
                     eq_dirs=eq_dirs, 
                     rs_xlim = (0,None), 
                     eq_date = eqdate[0],
-                    suptitle = suptitle
+                    suptitle = suptitle,
+                    scaling=scaling,
+                    display_units = display_units
                 ))
     
     return figs_list
@@ -565,7 +630,9 @@ def EQ_plot(TH_data, RS_data,
             eq_date = '', 
             suptitle = '', 
             rs_xlim = (0, None), 
-            figsize = (18,18)):
+            figsize = (18,18),
+            scaling = 1.0 / 9.81,
+            display_units = 'g'):
     """Plots earthquake motion data for ground accelerations and 
     response spectra in a 3x2 grid and prints to file (SVG & PNG).
     
@@ -587,54 +654,34 @@ def EQ_plot(TH_data, RS_data,
     else:
         raise ValueError('TH_data, RS_data & eq_dirs should have same number of parts')
     
-    S_a_ranges = []
     series_names = []
 
-    # th_dict = TH_dict[eq]
-    # rs_dict = RS_dict[eq]
-    # print(th_dict.keys())
-    # print(rs_dict.keys())
-
-    fig, axes = plt.subplots(nrows=nrows, ncols=2, figsize=figsize) # this is the overall Figure and the Axes object
-    # fig.set_label(eq)
+    fig, axes = plt.subplots(
+        nrows=nrows, ncols=2, figsize=figsize
+        ) # this is the overall Figure and the Axes object
     fig.suptitle(suptitle)
-    
-    # for ax in [ax11, ax21, ax12, ax22, ax13, ax23]:
-    #     ax.grid(True)
-
-    
-    # axes = [[ax11, ax21], [ax12, ax22], [ax13, ax23]]
     
     lts = ['-' for _ in eq_dirs]
     # print('\nlts', lts)
     
     for i, (th_data, rs_data, eqd, ax, lt) in enumerate(zip(TH_data, RS_data, eq_dirs, axes, lts)):
         color = f'C{i}'
-        # print(f'colour is {color}')
-        # print('Calling plot function')
-        # print('lengths', len(th_data), len(rs_data))
-        # print('lengths', [len(th) for th in th_data][:5], [len(rs) for rs in rs_data][:5])
-        # print('eq_dir:', eqd)
-        # print('axs', len(ax))
-            
         # Plotting the data...
-        tE, aE = zip(*th_data)
-        # print('lengths', len(tE), len(aE))
-        # print('data', tE[:5], aE[:5])
-        
+        tE, aE = zip(*th_data) # assumes these come in as SI as default
+        aE = [a * scaling for a in aE] # assumes plotting g units as default
         ax[0].hlines(0, 0, tE[-1], colors='k', lw=2)
         ax[0].plot(tE, aE, lt, color=color)
         ax[0].set_title(f'Acceleration - {eqd}')
         ax[0].set_xlabel('Time (s)')
-        ax[0].set_ylabel('Acceleration')
+        ax[0].set_ylabel(f'Acceleration ({display_units})')
         ax[0].set_xlim((0, tE[-1]))
         tE, aE = zip(*rs_data)
-        S_a_ranges.append([a / 980.665 for a in aE]) # assumes cm/s^2
+        aE = [a * scaling for a in aE] # assumes plotting g units as default
         ax[1].plot(tE, aE, lt, color=color)
         ax[1].set_title(f'Response Spectrum - {eqd}')
         series_names.append(f'{eq_date} ({eqd})')
         ax[1].set_xlabel('Period (s)')
-        ax[1].set_ylabel('Acceleration')
+        ax[1].set_ylabel(f'Acceleration ({display_units})')
         ax[1].set_xlim(rs_xlim)
         ax[1].set_ylim((0, None))
         
@@ -652,7 +699,7 @@ def EQ_plot(TH_data, RS_data,
     return fig
 
 
-def RS_plot(RS_sets:List[List[float]], 
+def RS_plot(RS_sets:List_of_list_of_lists, 
             data_type:str = 'A', 
             titles:List[str] = [], 
             plot_type:str = 'plot',

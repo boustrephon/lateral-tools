@@ -18,6 +18,8 @@ from os.path import join, splitext
 # from os.path import exists, isdir, isfile, basename
 from typing import Union, Any, Dict, List, Tuple # , PathLike
 from os.path import exists, basename
+from pySeismic.utilities import scale_to_SI_units
+
 import csv
 
 def as_numeric(txt:str, default:Any=None) -> Union[int, float, str]:
@@ -86,6 +88,35 @@ def read_csv(csv_file, header=1, as_dict=True):
         return data
 
 
+def ASC_record_pair_SI_scaling(
+        record: Union[
+            List[Union[float, int]], 
+            Tuple[Union[float, int]]], 
+        units: Union[str, float, int]
+        ) -> Tuple[float]:
+    """Scales a time, value pair to SI units.
+
+    This scales a time, value pair to SI units based
+    on the value of `units`. If `units` is numeric, then
+    second item is scaled by that number, if `units` is
+    text then a scaling factor to SI is looked up.
+
+    Args:
+        record: a data pair where the second needs scaling
+        units: either 
+    
+    Result:
+        tuple containing the data pair where second has been 
+        scaled to SI
+    """
+    x, y = record
+    if isinstance(units, str):
+        y_scaled = scale_to_SI_units(y, units)
+    elif isinstance(units, (float, int)):
+        y_scaled = y * units
+    return x, y_scaled
+
+
 def read_ASC(
         file_path: str, # Union[str, PathLike]
         seed_dict: Dict[str, Any]={}
@@ -134,15 +165,16 @@ def read_ASC(
                         data_type = value.strip() # e.g. Acceleration Response Spectrum
                     elif key.strip() == 'UNITS':
                         units = value.strip() # e.g. cm/s^2
+                        scale = scale_to_SI_units(units, 1)
                 else:
                     data = [as_float(n, None) for n in line.strip().split()]
                     if sampling_interval <= 0:
                         pass
                     elif len(data) == 1:
-                        th_list.append((t, as_float(line.strip())))
+                        th_list.append((t, scale * as_float(line.strip())))
                         t = round(t + sampling_interval, sampling_length)
                     elif len(data) == 2:
-                        th_list.append(tuple([as_float(d) for d in data]))
+                        th_list.append((float(data[0]), scale * float(data[1])))
         asc_dict['Data'] = th_list
         if len(data_type) > 0:
             asc_dict['xlabel'] = 'Period (s)' if 'Spectrum' in data_type else 'Time (s)'

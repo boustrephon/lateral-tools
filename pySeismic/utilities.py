@@ -4,12 +4,57 @@
 # from math import pi, sin, cos, tan, acos, asin, atan, atan2, log, log10
 from math import exp, log
 from itertools import accumulate
-
+from typing import Any
 
 ##### Basic functions #####
 
 # Functions:
 # printt, interp, list_interp, 
+
+def as_float(x):
+    try:
+        return float(x)        
+    except:
+        return x
+
+
+units_SI_scaling_dict = {
+    'mi':1604.344, 'yd':0.01, 'ft':0.3048, 'in':0.0254, 
+    'km':1000.0, 'm':1.0, 'cm':0.01, 'mm':0.001,
+    'GN':1.0E9, 'MN':1.0E6, 'kN':1000.0, 'N':1.0,
+    'GNm':1.0E9, 'MNm':1.0E6, 'kNm':1000.0, 'Nm':1.0, 'Nmm':0.001,
+    'kN/m':1000.0, 'N/m':1.0, 'N/mm':1000.0,
+    'kN/m2':1000.0, 'N/m2':1.0, 'N/mm2':1.0E6,
+    'kN/m^2':1000.0, 'N/m^2':1.0, 'N/mm^2':1.0E6,
+    'ksf': 4, 'psf'
+    'GPa':1.0E9, 'MPa':1.0E6, 'kPa':1000.0, 'Pa':1.0,
+    'ft/s':0.3048, 'in/s':0.0254, 
+    'km/s':1000.0, 'm/s':1.0, 'cm/s':0.01, 'mm/s':0.001,
+    'ft/s2':0.3048, 'in/s2':0.0254, 'ft/s^2':0.3048, 'in/s^2':0.0254, 
+    'km/s2':1000.0, 'm/s2':1.0, 'cm/s2':0.01, 'mm/s2':0.001,
+    'km/s^2':1000.0, 'm/s^2':1.0, 'cm/s^2':0.01, 'mm/s^2':0.001,
+    'g':9.80665
+}
+
+
+def scale_to_SI_units(units: str, default:Any=None) -> float:
+    """Returns the factor by which a value with a certain unit
+    should be scaled to get to SI units
+    
+    Args:
+        unit: name of scale factor. Note that this 
+        will have problems with 
+        default: default result if lookup fails
+
+    Returns: 
+        scale: scaling factor   
+    """
+    scale = units_SI_scaling_dict.get(units, None)
+    if scale is None:
+        casefold_dict = {k.casefold():v 
+                            for k, v in units_SI_scaling_dict.items()}
+        scale = casefold_dict.get(units.casefold(), default)
+    return scale
 
 
 def interp(x, x1, x2, y1, y2):
@@ -216,13 +261,6 @@ from itertools import accumulate
 from csv import reader, excel_tab
 from tkinter import filedialog
 from tkinter import *
-
-
-def as_float(x):
-    try:
-        return float(x)        
-    except:
-        return x
 
 
 def import_storey_data(file_path, delimiter=','):
