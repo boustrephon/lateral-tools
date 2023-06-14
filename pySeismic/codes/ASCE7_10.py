@@ -220,6 +220,12 @@ def x_get(lateral_system):
     return x_dict.get(lateral_system, 0.75)
 
 
+def k_get(building_period):
+    """Building mode parameter (k=1 is linear, k=2 is parabolic)
+    Section 12.8.3 (ASCE7-10)"""
+    return list_interp(building_period, (0.5,2.5), (1.0,2.0))
+
+
 def C_t_get(lateral_system):
     """Building period parameter, returns default of 0.020
     Table 12.8-2 (ASCE7-10)"""
