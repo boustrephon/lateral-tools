@@ -70,15 +70,21 @@ importance_factors_dict = {'I': (0.80, 0.80, 1.00, 1.00),
                             'IV': (1.20, 1.25, 1.00, 1.50)}
 
 
-def site_coeffs(site_class, S_s, S_1):
-    """Returns F_a, F_v when provided with site class (A-F) and S_s and S_1 values"""
+def site_coeffs(site_class, S_s, S_1, debug=False):
+    """Returns F_a, F_v when provided with 
+    site class (A-F) and S_s and S_1 values (ASCE 7-10)
+    """
     F_a_list = F_a_dict[site_class]
     F_v_list = F_v_dict[site_class]
+    if debug:
+        print(f'site_class = {site_class}; S_s = {S_s}; S_1 = {S_1}; F_a = {F_a_list}; F_v = {F_v_list}')
     return list_interp(S_s, F_a_headers, F_a_list), list_interp(S_1, F_v_headers, F_v_list)
 
 
 def site_accels_M(site_class, S_s, S_1):
-    """Returns S_MS, S_M1 when provided with site class (A-F) and S_s and S_1 values
+    """Returns S_MS, S_M1 when provided with 
+    site class (A-F) and S_s and S_1 values
+    
     >>> site_accels_M(site_class, S_s, S_1)
     (0.468, 0.33)
     """
@@ -86,7 +92,8 @@ def site_accels_M(site_class, S_s, S_1):
     F_v_list = F_v_dict[site_class]
     F_a = list_interp(S_s, F_a_headers, F_a_list)
     F_v = list_interp(S_1, F_v_headers, F_v_list)
-    return F_a * S_s, F_v * S_1
+    return (None if F_a is None else F_a * S_s, 
+            None if F_v is None else F_v * S_1)
 
 
 def code_period(h_n, s_type):
@@ -211,6 +218,12 @@ def x_get(lateral_system):
     """Building period parameter, returns default of 0.75
     Table 12.8-2 (ASCE7-10)"""
     return x_dict.get(lateral_system, 0.75)
+
+
+def k_get(building_period):
+    """Building mode parameter (k=1 is linear, k=2 is parabolic)
+    Section 12.8.3 (ASCE7-10)"""
+    return list_interp(building_period, (0.5,2.5), (1.0,2.0))
 
 
 def C_t_get(lateral_system):

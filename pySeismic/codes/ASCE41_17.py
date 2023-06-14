@@ -23,18 +23,18 @@ TODO:
 
 """
 
-from math import log, pi, sin, cos, tan, acos, asin, atan, atan2, log, log10
+from math import pi, sin, cos, tan, acos, asin, atan, atan2, log, log10
 from itertools import accumulate
 
-from pySeismic.utilities import printt, interp, list_interp, \
+from pySeismic.utilities import print_table, interp, list_interp, \
     storey_force_coeffs, storey_force_distribution, storey_forces, \
     storey_shear_moment, shear_coords
-from pySeismic.importing import k_gen # Eq 4-2a
-from pySeismic.codes import site_coeffs as ASCE7_16_site_coeffs
+# from pySeismic.importing import k_gen # Eq 4-2a
+from pySeismic.codes.ASCE7_16 import site_coeffs as ASCE7_16_site_coeffs
 
 
 #=== The following functions may be found in the utilities module ===#
-# def printt(table, h1 = 20, h2 = 12, h3 = 4):
+# def print_table(table, h1 = 20, h2 = 12, h3 = 4):
 #     """
 #     Printing tables where first column is text and the remainder are floats
 #     h1 is the width of the text column, 
@@ -239,20 +239,23 @@ def B_1_func(damp_ratio):
     return 4.0 / (5.6 - log(100 * damp_ratio)) 
 
 
-def S_a_func(T, S_s, S_1, site_class, T_L = 12.0, damp = 0.05):
+def S_a_func(T, S_s, S_1, site_class, T_L = 12.0, damp = 0.05, debug=False):
     """Returns the spectral acceleration when provided 
     with period (T), S_s, S_1 and site class, Figure 2-1, ASCE41-17
     """
-    F_a, F_v = ASCE7_16_site_coeffs(site_class, S_s, S_1)
-    S_xs = F_a * S_s  # Eq 2-1
-    S_x1 = F_v * S_1  # Eq 2-2
-    T_s = S_x1 / S_xs
-    # T_0 = 0.2 * T_s
-    B_1 = B_1_func(damp)
-    return min(S_xs / B_1, 
-               S_xs * ((5.0 / B_1 - 2.0) * T / T_s + 0.4), 
-               S_x1 / B_1 / T) if T < T_L else T_L * S_x1 / (B_1 * T**2.0)
-
+    try:
+        F_a, F_v = ASCE7_16_site_coeffs(site_class, S_s, S_1)
+        S_xs = F_a * S_s  # Eq 2-1
+        S_x1 = F_v * S_1  # Eq 2-2
+        T_s = S_x1 / S_xs
+        # T_0 = 0.2 * T_s
+        B_1 = B_1_func(damp)
+        return min(S_xs / B_1, 
+                S_xs * ((5.0 / B_1 - 2.0) * T / T_s + 0.4), 
+                S_x1 / B_1 / T) if T < T_L else T_L * S_x1 / (B_1 * T**2.0)
+    except Exception as e:
+        if debug: print(e)
+        return None
 
 # -----------------------------------------------------------------
 # ----- Tier One Data and Functions -------------------------------
@@ -263,8 +266,8 @@ def S_a_func(T, S_s, S_1, site_class, T_L = 12.0, damp = 0.05):
 
 # Simplified Rehabilitation
 # Table 3-4  ASCE41-17 Limitations on Use of the Tier 1 & Tier 2 Procedures (number of storeys)
-# No Limit (NL) = 0, Not Permitted (NP) = -1
-struct_types_full_dict = {
+# No Limit (NL) = -1, Not Permitted (NP) = 0
+table_3_4_struct_types_limitations_dict = {
 'W1': {'Description':'Light Wood Frames', 
        ('Very Low', 'S-5'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-5'):-1, ('Low', 'S-1'):4, 
        ('Moderate', 'S-5'):4, ('Moderate', 'S-1'):4, ('High', 'S-5'):4, ('High', 'S-1'):4},
@@ -357,20 +360,89 @@ struct_types_full_dict = {
        }
 
 
-def S_a_Tier_1_func(S_s: float, S_1: float, T: float, site_class: str) -> float:
+# from tabulate import tabulate
+
+def table_3_4_get(key, seismicity_level=None, structural_performance_level=None):
+    table_3_4_limits = table_3_4_struct_types_limitations_dict.get(key, {})
+    if (seismicity_level is None) or (structural_performance_level is None):
+        return table_3_4_limits
+    else:
+        limit = table_3_4_limits.get((seismicity_level, structural_performance_level), None)
+        return 'NL' if limit == -1 else 'NP' if limit == 0 else str(limit)
+
+
+def split_txt(txt, num=20):
+    spc = [i for i, t in enumerate(txt + ' ') if (t == ' ') or (t == '-')]
+    # print(spc)
+    
+    n1 = num
+    spc0 = []
+    for i, n in enumerate(spc):
+        
+        if n > n1:
+            spc0.append(spc[i-1])
+            # print(f'n={n}; n1={n1}; spc-1={spc[i-1]}; n1_new={spc[i-1] + num}')
+            n1 = spc[i-1] + num
+        else:
+            # print(f'n={n}; num={num}')
+            pass
+        
+    # print(spc0)
+    return ''.join([t if (i not in spc0) else ('\n' if txt[i] == ' ' else '-\n') for i, t in enumerate(txt)])
+
+
+def print_table_3_4(num=30, 
+                    seismicity_levels = ('Very Low', 'Low', 'Moderate', 'High'),
+                    performance_levels = ('S-5', 'S-1')):
+    """Prints out table 3-4 of ASCE 41-17"""
+    # num = 30
+    n1 = len(seismicity_levels)
+    n2 = len(performance_levels)
+    keys3 = [(k1, k2) for k1 in seismicity_levels for k2 in performance_levels]
+
+    print('\nTable 3-4. Limitations on the Use of the Tier 1 and Tier 2 Procedures\n')
+    sfmt = tuple([5, num] + n1 * n2 * [5])
+    sf1 = sum(sfmt[:2]) + 1
+    sf2 = sum(sfmt[2:]) + 7
+    sf3 = sum(sfmt[2:4]) + 1
+    print(f'{" ":{sf1}} {"Level of Seismicity":^{sf2}}')
+    print(f'{" ":{sf1}} ' + ' '.join([f'{s:^{sf3}}' for s in seismicity_levels]))
+    print(f'{"Common Building Type":{sf1}} ' + ' '.join([f'{s:^5}' for s in n1 * performance_levels]))
+    for k,v in table_3_4_struct_types_limitations_dict.items():
+        desc = v.get('Description','')
+        split_text = split_txt(desc, num=num).split('\n')
+        # print(split_text)
+        print(f'{k:{sfmt[0]}} ', end='')
+        if len(split_text) == 0:
+            print(f'{" ":{sfmt[1]}} ', end='')
+        elif len(split_text) == 1:
+            print(f'{split_text[0]:{sfmt[1]}} ', end='')
+        else:
+            print(f'{split_text[0]:{sfmt[1]}}')
+            [print(f'{" ":{sfmt[0]}} {txt:{sfmt[1]}}') for txt in split_text[1:-1]] 
+            print(f'{" ":{sfmt[0]}} {split_text[-1]:{sfmt[1]}} ', end='')
+        
+        limits = [v.get(k,'') for k in keys3]
+        limits = ['NL' if n == -1 else 'NP' if n == 0 else str(n) for n in limits]
+        [print(f'{limit:^{sfmt[2]}}', end=' ') for limit in limits]
+        print()
+    return None
+
+
+def S_a_Tier_1_func(T: float, S_s: float, S_1: float, site_class: str, debug: bool = False) -> float:
     """Returns spectral acceleration for Tier 1 Assessment
 
     4.4.2.3 Spectral Acceleration ASCE41-17
 
     Args:
+        T: Building period
+            :units: s
         S_s: The short period site spectral acceleration
             :units: g
             :latex: \\S_S
         S_1: The 1-second site spectral acceleration
             :units: g
             :latex: \\S_1
-        T: Building period
-            :units: s
         site_class: The site classification (A-E)
             :latex: \\class
     
@@ -383,10 +455,14 @@ def S_a_Tier_1_func(S_s: float, S_1: float, T: float, site_class: str) -> float:
     
     .. levelofreview:: Work in progress
     """
-    F_a, F_v = ASCE7_16_site_coeffs(site_class, S_s, S_1)
-    S_XS = F_a * S_s  # Eq 2-1
-    S_X1 = F_v * S_1  # Eq 2-2
-    return min(S_XS, S_X1 / T)  # Eq 4-3
+    try:
+        F_a, F_v = ASCE7_16_site_coeffs(site_class, S_s, S_1)
+        S_XS = F_a * S_s  # Eq 2-1
+        S_X1 = F_v * S_1  # Eq 2-2
+        return min(S_XS, S_X1 / T)  # Eq 4-3
+    except Exception as e:
+        if debug: print(e)
+        return None
 
 
 # ASCE41-17 Table 4-2 Default compressive strengths (f'c) in ksi
@@ -398,14 +474,6 @@ table_4_2_dict_17 = {
 }
 
 
-# Table 4-2. Default Compressive Strengths (f'c) of Structural Concrete (ksi)
-table_4_2_dict_17 = {
-             (1920, 1949): {'Beams': 2.0, 'Slabs and Columns': 2.0, 'Walls': 2.0},
-             (1950, 1969): {'Beams': 3.0, 'Slabs and Columns': 3.0, 'Walls': 2.5},
-             (1970, 3000): {'Beams': 3.0, 'Slabs and Columns': 3.0, 'Walls': 3.0},    
-}
-
-
 # Table 4-3. Default Yield Strengths (fy) of Reinforcing Steel (ksi)
 # The dictionary keys are the start & end dates as a tuple,
 # and the sub-keys are the steel grade in ksi
@@ -413,14 +481,48 @@ table_4_2_dict_17 = {
 #   became obsolete in 1968.
 table_4_3_dict_17 = {
              (1911, 1959): {33:True, 40:True, 50:True, 60:False, 65:True, 70:False, 75:False},
-             (1960, 1966): {33:True, 40:True, 50:True, 60:True, 65:True, 70:True, 75:True},
-             (1967, 1987): {33:False, 40:True, 50:True, 60:True, 65:True, 70:True, 75:False},
-             (1988, 3000): {33:False, 40:True, 50:True, 60:True, 65:True, 70:True, 75:True},
+             (1959, 1966): {33:True, 40:True, 50:True, 60:True, 65:True, 70:True, 75:True},
+             (1966, 1987): {33:False, 40:True, 50:True, 60:True, 65:True, 70:True, 75:False},
+             (1987, 3000): {33:False, 40:True, 50:True, 60:True, 65:True, 70:True, 75:True},
              }
 
 
 # Table 4-4. Default Yield Strengths (Fy) of Archaic Materials (ksi)
 table_4_4_dict_17 = {('Pre-1900', 'Steel'): 24}
+
+
+# Table 4-6. Checklists Required for a Tier 1 Screening
+table_4_6_Tier_1_checklists = (
+    'Very Low Seismicity Checklist (Sec 17.1.1) ',
+    'Basic Configuration Checklist (Sec. 17.1.2)',
+    'Collapse Prevention Checklist (Sec. 17.2 through 17.17)',
+    'Immediate Occupancy Checklist (Sec. 17.2 through 17.17)',
+    'Hazards Reduced or Life Safety Nonstructural Checklist (Sec. 17.19)',
+    'Position Retention Nonstructural Checklist (Sec. 17.19)'
+    )
+table_4_6_dict = {
+    ('Very Low', 'CP'): (True, False, False, False, False, False),
+    ('Very Low', 'IO'): (False, True, False, True, False, True),
+    ('Low', 'CP'): (False, True, True, False, True, False),
+    ('Low', 'IO'): (False, True, False, True, False, True),
+    ('Moderate', 'CP'): (False, True, True, False, True, False),
+    ('Moderate', 'IO'): (False, True, False, True, False, True),    
+    ('High', 'CP'): (False, True, True, False, True, False),
+    ('High', 'IO'): (False, True, False, True, False, True),}
+
+
+def table_4_6_Tier_1_required_checklists_get(seismicity_level, performance_level):
+    """Table 4-6 from ASCE 41-17 - checklists required for a Tier 1 screening
+    
+    Args:
+        seismicity_level - defined in section 2.5
+        performance_level - defined in section 2.3.3
+        
+    """
+    required = table_4_6_dict.get(
+        (seismicity_level, performance_level),
+        None)
+    return tuple([c for b,c in zip(required, table_4_6_Tier_1_checklists) if b])
 
 
 # ASCE41-17 Table 4-7 Modification Factor, C
@@ -639,47 +741,103 @@ def f_j_avg_smf(V_j, M_s, n_c, n_f, h, Z, perf=None):
 import matplotlib.pyplot as plt
 import matplotlib.lines as lines
 
+def recur(coll):
+    if isinstance(coll, (list, tuple)):
+        if len(coll) == 0:
+            return None
+        elif isinstance(coll[0], (int, float)):
+            return len(coll)
+        elif isinstance(coll[0], (list, tuple)):
+            return [recur(d) for d in coll if isinstance(d,(list, tuple))]
+        else:
+            return None
 
-def ASCE41_17_plots(S_s, S_1, T_code_s = 0.0, soil_classes = ['A', 'B', 'C', 'D', 'E'], S_a_func = S_a_func, site_class='B', **kwargs):
+
+def ASCE41_17_plots(S_s, S_1, T_code_s = 0.0, 
+                    soil_classes = ['A', 'B', 'C', 'D', 'E'], 
+                    S_a_func = S_a_func, site_class='B', debug=False, 
+                    **kwargs):
     """
+
+
+    Additional keywords include `figsize`, `num_pts`, `plot_title`
     """
+    figsize = kwargs.get('figsize', (10,15))
+    num_pts = kwargs.get('num_pts', 100)
+    plot_title = kwargs.get('plot_title', 'Response Spectra')
+
     T_max = max(3.0, 1.2 * T_code_s)
-    lim = round(T_max * 100) + 1
-    T_range = [0.01 * float(T) for T in range(1,lim)]
+    lim = round(T_max * num_pts) + 1
+    T_range = [float(T) / num_pts for T in range(1,lim)]
+    
 
     #soil_classes = ['A', 'B', 'C', 'D', 'E']
-    S_a_ranges = [[S_a_func(T, S_s, S_1, s_c) 
-                   for T in T_range] for s_c in soil_classes]
-    S_v_ranges = [[9.81 * 0.5 / pi * T * S_a 
-                   for T, S_a in zip(T_range, S_a_range)] for S_a_range in S_a_ranges]
-    S_d_ranges = [[0.5 / pi * T * S_v 
-                   for T, S_v in zip(T_range, S_v_range)] for S_v_range in S_v_ranges]
+    S_a_dict = {s_c:[(T, S_a_func(T, S_s, S_1, s_c, debug=debug)) 
+                   for T in T_range] for s_c in soil_classes}
+    
+    # 
+    valid_soil_classes = [k for k, v in S_a_dict.items() if any(vv[1] for vv in v)] #v is not None]
+    if debug: print('Valid Soil Classes: ', valid_soil_classes)
+    invalid_soil_classes = [s for s in soil_classes if s not in valid_soil_classes]
+    print(f'Spectral acceleration is not defined for S_s = {S_s} and S_1 = {S_1} for classes: {" & ".join(invalid_soil_classes)}')
 
-    figs, (ax1, ax2, ax3, ax4) = plt.subplots(4,figsize = (10,15))
+    S_a_data = [[(T, S_a) 
+                   for T, S_a in S_a_dict.get(s_c,(None, None)) if S_a is not None] 
+                   for s_c in valid_soil_classes]
+    
+    try:
+        T_ranges, S_a_ranges = zip(*(zip(*data) for data in S_a_data))
+    except Exception as e:
+        print('S_a_data depth: ', recur(S_a_data))
+        if num_pts < 10:
+            [print(k,':',v) for k,v in S_a_dict.items()]
+            print(S_a_data)
+        raise e
+
+    S_v_data = [[(T, 9.81 * (0.5 * T / pi) * S_a) 
+                   for T, S_a in zip(T_range, S_a_range) 
+                   if S_a is not None] 
+                   for T_range, S_a_range 
+                   in zip(T_ranges, S_a_ranges)]
+    S_d_data = [[(T, 9.81 * (0.5 * T / pi)**2 * S_a) 
+                   for T, S_a in zip(T_range, S_a_range) 
+                   if S_a is not None] 
+                   for T_range, S_a_range 
+                   in zip(T_ranges, S_a_ranges)]
+
+    figs, (ax1, ax2, ax3, ax4) = plt.subplots(4, figsize = figsize)
+
+    figs.suptitle(plot_title)
 
     [ax1.plot(T_range, S_a_range, label=s_c) 
-     for s_c, S_a_range in zip(soil_classes, S_a_ranges)]
-    ax1.grid(True)
-    ax1.legend(soil_classes)
+     for s_c, T_range, S_a_range in 
+     zip(valid_soil_classes, T_ranges, S_a_ranges)]
+    ax1.set_ylabel(f'Acceleration (g)')
+        
 
+    T_ranges, S_v_ranges = zip(*(zip(*data) for data in S_v_data))
     [ax2.plot(T_range, S_v_range, label=s_c) 
-     for s_c, S_v_range in zip(soil_classes, S_v_ranges)]
-    ax2.grid(True)
-    ax2.legend(soil_classes)
+     for s_c, T_range, S_v_range in 
+     zip(valid_soil_classes, T_ranges, S_v_ranges)]
+    ax2.set_ylabel(f'Velocity (m/s)')
+    
 
+    T_ranges, S_d_ranges = zip(*(zip(*data) for data in S_d_data))
     [ax3.plot(T_range, S_d_range, label=s_c) 
-     for s_c, S_d_range in zip(soil_classes, S_d_ranges)]
+     for s_c, T_range, S_d_range in 
+     zip(valid_soil_classes, T_ranges, S_d_ranges)]
+    ax3.set_xlabel(f'Period (s)')
+    ax3.set_ylabel(f'Displacement (m)')
     
-    ax3.grid(True)
-    ax3.legend(soil_classes)
-
+    
     [ax4.plot(S_d_range, S_a_range, label=s_c) 
-     for s_c, S_d_range, S_a_range in zip(soil_classes, S_d_ranges, S_a_ranges)]
+     for s_c, S_d_range, S_a_range in 
+     zip(valid_soil_classes, S_d_ranges, S_a_ranges)]
+    ax4.set_xlabel(f'Displacement (m)')
+    ax4.set_ylabel(f'Acceleration (g)')
     
-    ax4.grid(True)
-    ax4.legend(soil_classes)
     
-    if T_code_s > 0 and site_class in soil_classes:
+    if T_code_s > 0 and site_class in valid_soil_classes:
         S_a_g = S_a_func(T_code_s, S_s, S_1, site_class)
         ax1.plot(T_code_s, S_a_g, marker = 'o')
         S_v_g = 0.5 / pi * T_code_s *  S_a_g * 9.81  # in m/s
@@ -687,188 +845,265 @@ def ASCE41_17_plots(S_s, S_1, T_code_s = 0.0, soil_classes = ['A', 'B', 'C', 'D'
         S_d_g = 0.5 / pi * T_code_s *  S_v_g  # in m
         ax3.plot(T_code_s, S_d_g, marker = 'o')
         ax4.plot(S_d_g, S_a_g, marker = 'o')
-    
+    elif T_code_s > 0 and site_class not in valid_soil_classes:
+        print(f'Spectral acceleration is not defined for S_s = {S_s} and S_1 = {S_1} for site class {site_class}')
+    else:
+        pass
+
+    for i, ax in enumerate((ax1, ax2, ax3, ax4)):
+        ax.grid(True)
+        ax.legend(valid_soil_classes)
+        if i == 3:
+            ax.set_xlim((0,None))
+        else:
+            ax.set_xlim((0,T_max))
+        ax.set_ylim((0,None))
+
+    figs.set_tight_layout(True)
+
+
     return figs
 
+try:
+    from pySeismic.plotting import tripartite_plot
 
-def ASCE41_17_tripartite_plot(S_s, S_1, T_max = 3.0, soil_classes = ['A', 'B', 'C', 'D', 'E'], S_a_func = S_a_func, T_code_s = 0.0, site_class = 'B', **kwargs):
-    """Returns a tripartite plot of ASCE41_17 spectra or some other specified function"""
-    lim = round(T_max * 100) + 1
-    T_range = [0.01 * float(T) for T in range(1,lim) if 0.01 * float(T) >= 0.1]
+    def ASCE41_17_tripartite_plot(
+            S_s, S_1, T_max = 3.0, soil_classes = ['A', 'B', 'C', 'D', 'E'], 
+            S_a_func = S_a_func, T_code_s = 0.0, site_class = 'B', 
+            minor_lines = [1, 2, 3, 4, 5, 6, 7, 8, 9], **kwargs):
+        """Returns a tripartite plot of ASCE41_17 spectra or some other specified function"""
+        debug = kwargs.get('debug', False)
+        figsize = kwargs.get('figsize', (10,15))
+        num_pts = kwargs.get('num_pts', 100)
+        plot_title = kwargs.get('plot_title', 'Response Spectra')
 
-    S_a_ranges = [[S_a_func(T, S_s, S_1, s_c) 
-                   for T in T_range] 
-                   for s_c in soil_classes]
-    
-    plot_pts = []
-    if T_code_s > 0 and site_class in soil_classes:
-        S_a_g = S_a_func(T_code_s, S_s, S_1, site_class)
-        S_v_g = 0.5 / pi * T_code_s *  S_a_g * 9.81  # in m/s
-        plot_pts.append((T_code_s, S_v_g))
-    
-    return tripartite_plot_ss(
-        T_range, 
-        S_a_ranges, 
-        soil_classes, 
-        plot_pts=plot_pts
-        )
+        T_max = max(3.0, 1.2 * T_code_s)
+        lim = round(T_max * num_pts) + 1
+        T_range = [float(T) / num_pts for T in range(1,lim) if 0.01 * float(T) >= 0.1]
+        
+        #soil_classes = ['A', 'B', 'C', 'D', 'E']
+        S_a_dict = {s_c:[(T, S_a_func(T, S_s, S_1, s_c, debug=debug)) 
+                    for T in T_range] for s_c in soil_classes}
+        
 
+        valid_soil_classes = [k for k, v in S_a_dict.items() if any(vv[1] for vv in v)] #v is not None]
+        if debug: print('Valid Soil Classes: ', valid_soil_classes)
+        invalid_soil_classes = [s for s in soil_classes if s not in valid_soil_classes]
+        print(f'Spectral acceleration is not defined for S_s = {S_s} and S_1 = {S_1} for classes: {" & ".join(invalid_soil_classes)}')
 
-def tripartite_plot_ss(T_range, S_a_ranges, titles, plot_pts=[], **kwargs):
-    """Plots tripartite data
-        majorlines is a list of the minor log lines to plot (default [1,2,3,4,5,6,7,8,9])
-    
-    Args:
-        T_range (list[float]: time values - it is assumed that the range is the same for all plots
-        S_a_ranges: spectral acceleration (assumed to be in units of g)
-        titles (list[str]): one title for each S_a_range
-        plot_pts (list[tuple,list]): (T, S_v) points for plotting 
-        kwargs: parameters for passing through to? Nowhere at present 
-            (can specify figsize and majorlines)
-    """
-    # Check that data dimensions match
-    err_msgs = []
-    if not (len(S_a_ranges) == len(titles)):
-        err_msgs.append(f'Number of curves does not match: len(S_a_ranges) = {len(S_a_ranges)}, len(titles) = {len(titles)}')
-    S_a_ranges_len = [len(S_a_range) for S_a_range in S_a_ranges]
-    if not (all(S_a_range_len == len(T_range) 
-                for S_a_range_len in S_a_ranges_len)):
-        err_msgs.append(f'Number of curves does not match: len(T_range) = {len(T_range)}, len(S_a_ranges) = {S_a_ranges_len}')
-    if len(err_msgs) > 0:
-        err_msg = '\n'.join(err_msgs)
-        raise ValueError(err_msg)
-    
-    # calculate the spectral pseudo velocities
-    S_v_ranges = [[9.81 * 0.5 / pi * T * S_a 
-                   for T, S_a in zip(T_range, S_a_range)] 
-                   for S_a_range in S_a_ranges]
-    
-    figsize = kwargs.get('figsize', (10,8))
-    fig0, ax0 = plt.subplots(figsize = figsize)
-    [ax0.loglog(T_range, S_v_range, label=s_c) 
-     for s_c, S_v_range in zip(titles, S_v_ranges)]
-    # ax0.loglog(T_code_s, S_v_g, marker = 'o') # marking the results for the building period
-
-    ax0.grid(True)
-    #fig = plt.gcf(); fig.set_size_inches(16,8)
-    ax0.legend(titles)
-
-    ##### Tripartite Lines ###########
-    x0 = fig0.axes[0].get_xlim() #; print(x0)
-    y0 = fig0.axes[0].get_ylim() #; print(y0)
-    
-    T_min, T_max = x0  
-    log_T_min, log_T_max = log10(T_min), log10(T_max)
-    #print('T_min, T_max', T_min, T_max)
-    
-    v_min, v_max = y0  
-    log_v_min, log_v_max = log10(v_min), log10(v_max)
-    #print('v_min, v_max', v_min, v_max)
-    
-    a_min, a_max = [2.0 * pi / T * v 
-                    for v, T in ((v_min, T_max),(v_max, T_min))]
-    log_a_min, log_a_max = log10(a_min), log10(a_max)
-    #print('a_min, a_max', a_min, a_max)
-    
-    d_min, d_max = [0.5 / pi * T * v 
-                    for v, T in ((v_min, T_min),(v_max, T_max))]
-    log_d_min, log_d_max = log10(d_min), log10(d_max)
-    #print('d_min, d_max', d_min, d_max)
-    
-    # Calculate a-values and d-values on the log-log line between a_min & a_max and d_min & d_max respectively
-    major_lines = kwargs.get('major_lines', [1, 2, 3, 4, 5, 6, 7, 8, 9])
-    
-    a_fac, a_unit = (1.0, 'm/s^2')
-    #a_fac, a_unit = (9.81, 'g') # does not work!
-    
-    d_fac, d_unit = (1.0, 'm')
-    
-    #===========
-    # generate the list of acceleration lines provided they are within the limits
-    a_list = [(m * 10**float(n)) 
-              for n in range(int(log10(a_min))-2, int(log10(a_max))) 
-              for m in major_lines if (m * 10**float(n) * a_fac > a_min) and (m * 10**float(n) * a_fac < a_max)]
-    a_prec = [max(0,int(1+log10(0.99/a))) for a in a_list]
-    a_str = ['{:.{prec}f} {}'.format(a, a_unit, prec=p) 
-             for a, p in zip(a_list, a_prec)]
-    a_values = [a * a_fac for a in a_list]
-    #[print(a,b,s) for a,b,s in zip(a_list, a_values, a_str)]
-    
-    # generate the list of displacement lines provided they are within the limits
-    d_list = [(m * 10**float(n)) 
-              for n in range(int(log10(d_min)), int(log10(d_max))+1) for m in major_lines if (m * 10**float(n) * d_fac > d_min) and (m * 10**float(n) / d_fac < d_max)]
-    d_prec = [max(0,int(1+log10(0.99/d))) 
-              for d in d_list]
-    d_str = ['{:.{prec}f} {}'.format(d, d_unit, prec=p) 
-             for d, p in zip(d_list, d_prec)]
-    d_values = [d * d_fac for d in d_list]
-    #print('d_values (min & max)', d_values[0], d_values[-1])
-    # 
-    log_a_values = [log10(a) for a in a_values]
-    log_d_values = [log10(d) for d in d_values]
-
-    #change the following lines
-    #a_ls = ['-' if abs(a + log10(a_fac) - int(a + log10(a_fac))) < 0.001 else ':' for a in log_a_values]
-    a_ls = ['-' if abs(log10(a) - int(log10(a))) < 0.001 else ':' for a in a_list]
-    #d_ls = ['-' if abs(d - int(d)) < 0.001 else ':' for d in log_d_values]
-    d_ls = ['-' if abs(log10(d) - int(log10(d))) < 0.001 else ':' for d in d_list]
-
-    ta_values = [(a - log_a_min)/(log_a_max - log_a_min) for a in log_a_values]
-    #print('ta_min, ta_max', ta_values[0], ta_values[-1])
-    td_values = [(d - log_d_min)/(log_d_max - log_d_min) for d in log_d_values]
-    #print('td_min, td_max', td_values[0], td_values[-1])
-
-    va_values = [log_v_min + t * (log_v_max - log_v_min) for t in ta_values]
-    #print('va_min, va_max', 10**va_values[0], 10**va_values[-1])
-    vd_values = [log_v_min + t * (log_v_max - log_v_min) for t in td_values]
-    #print('vd_min, vd_max', 10**vd_values[0], 10**vd_values[-1])
-
-    Ta_values = [log_T_max + t * (log_T_min - log_T_max) for t in ta_values]
-    #print('Ta_min, Ta_max', 10**Ta_values[0], 10**Ta_values[-1])
-    Td_values = [log_T_min + t * (log_T_max - log_T_min) for t in td_values]
-    #print('Td_min, Td_max', 10**Td_values[0], 10**Td_values[-1])
-
-    #s1
-    s_a2 = [min(log_v_max - v, log_T_max - T) for v, T in zip(va_values, Ta_values)]
-    s_a1 = [max(log_v_min - v, log_T_min - T) for v, T in zip(va_values, Ta_values)]
-    #print('s_a1[0], s_a2[0]', s_a1[0], s_a2[0])
-
-    # identifying the index of the longest acceleration line
-    (m_a, i_a) = max((v2-v1,i) for i, (v1, v2, als) in enumerate(zip(s_a1, s_a2, a_ls)) if als == '-')
-    #print('m_a, i_a', m_a, i_a)
-
-    #s1
-    s_d2 = [max(v - log_v_max, log_T_min - T) for v, T in zip(vd_values, Td_values)]
-    s_d1 = [min(v - log_v_min, log_T_max - T) for v, T in zip(vd_values, Td_values)]
-    #print('s_d1[0], s_d2[0]', s_d1[0], s_d2[0])
-
-    # identifying the index of the longest displacement line
-    (m_d, i_d) = max((v1-v2,i) for i, (v1, v2, dls) in enumerate(zip(s_d1, s_d2, d_ls)) if dls == '-')
-    #print('m_d, i_d', m_d, i_d)
-
-    # calculate the coordinates of the ends of the acceleration lines
-    a_coords = [((10**(T+s1), 10**(T+s2)), (10**(v+s1), 10**(v+s2))) for v, T, s1, s2 in zip(va_values, Ta_values, s_a1, s_a2)]
-    a_lines = [lines.Line2D(P1, P2, transform=ax0.transData, axes=ax0, color='grey', ls = ls, lw = 0.5, zorder=0) for (P1, P2), ls in zip(a_coords, a_ls)]
-
-    # calculate the coordinates of the ends of the displacement lines
-    d_coords = [((10**(T+s1), 10**(T+s2)), (10**(v-s1), 10**(v-s2))) for v, T, s1, s2 in zip(vd_values, Td_values, s_d1, s_d2)]
-    d_lines = [lines.Line2D(P1, P2, transform=ax0.transData, axes=ax0, color='grey', ls = ls, lw = 0.5, zorder=0) for (P1, P2), ls in zip(d_coords, d_ls)]
-
-    #print('a_coords', a_coords[i_a])
-    #print('d_coords', d_coords[i_d])
-
-    ax_lines = [lines.Line2D(P1, P2, transform=ax0.transData, axes=ax0, color='magenta', ls = '-', lw = 1.0, zorder=0) for (P1, P2) in [a_coords[i_a], d_coords[i_d]]]
-
-    ax0.lines.extend(a_lines + d_lines + ax_lines) #, l3, l4])
-
-    #ax0.text(0.5*(T_min + T_max), 0.5*(v_min + v_max), "text on plot $m/s^2$")
-    [ax0.text(10**T, 10**v, '$'+txt+'$', rotation=45, zorder=0.1) for T, v, txt in zip(Ta_values, va_values, a_str)]
-    [ax0.text(10**T, 10**v, '$'+txt+'$', rotation=-45, zorder=0.1) for T, v, txt in zip(Td_values, vd_values, d_str)]
-    
-    # plot any additionally provided points
-    if len(plot_pts) > 0:
-        [ax0.plot(T, v, marker = 'o') for T,v in plot_pts]
-    
-    return fig0
+        S_a_data = [[(T, S_a) 
+                    for T, S_a in S_a_dict.get(s_c,(None, None)) if S_a is not None] 
+                    for s_c in valid_soil_classes]
+        
+        try:
+            T_ranges, S_a_ranges = zip(*(zip(*data) for data in S_a_data))
+        except Exception as e:
+            print('S_a_data depth: ', recur(S_a_data))
+            if num_pts < 10:
+                [print(k,':',v) for k,v in S_a_dict.items()]
+                print(S_a_data)
+            raise e
 
 
+        # calculate the spectral pseudo velocities
+        S_v_ranges = [[9.81 * 0.5 / pi * T * S_a 
+                    for T, S_a in zip(T_range, S_a_range)] 
+                    for T_range, S_a_range in zip(T_ranges, S_a_ranges)]
+        
+
+        plot_pts = []
+        if T_code_s > 0 and site_class in valid_soil_classes:
+            S_a_g = S_a_func(T_code_s, S_s, S_1, site_class)
+            S_v_g = 0.5 / pi * T_code_s *  S_a_g * 9.81  # in m/s
+            plot_pts.append((T_code_s, S_v_g))
+        
+        # return tripartite_plot_ranges(
+        #     T_range, 
+        #     S_a_ranges, 
+        #     valid_soil_classes, 
+        #     plot_pts=plot_pts,
+        #     **kwargs)
+
+        return tripartite_plot(
+            T_ranges, 
+            S_v_ranges, 
+            series_names = valid_soil_classes,
+            plot_pts=plot_pts, 
+            debug=debug, 
+            figsize=figsize, 
+            suptitle=plot_title, 
+            minor_lines = minor_lines,
+            **kwargs
+            )
+
+
+    def tripartite_plot_ranges(T_range, S_a_ranges, titles, plot_pts=[], **kwargs):
+        """Plots tripartite data
+            majorlines is a list of the minor log lines to plot (default [1,2,3,4,5,6,7,8,9])
+        
+        Args:
+            T_range (list[float]: time values - it is assumed that the range is the same for all plots
+            S_a_ranges: spectral acceleration (assumed to be in units of g)
+            titles (list[str]): one title for each S_a_range
+            plot_pts (list[tuple,list]): (T, S_v) points for plotting 
+            kwargs: parameters for passing through to? Nowhere at present 
+                (can specify figsize and majorlines)
+        """
+        debug = kwargs.get('debug', False)
+        figsize = kwargs.get('figsize', (10,8))
+        plot_title = kwargs.get('plot_title', 'Response Spectra Tripartite Plot (5% damping)')
+
+
+        # Check that data dimensions match
+        err_msgs = []
+        if not (len(S_a_ranges) == len(titles)):
+            err_msgs.append(f'Number of curves does not match: len(S_a_ranges) = {len(S_a_ranges)}, len(titles) = {len(titles)}')
+        S_a_ranges_len = [len(S_a_range) for S_a_range in S_a_ranges]
+        if not (all(S_a_range_len == len(T_range) 
+                    for S_a_range_len in S_a_ranges_len)):
+            err_msgs.append(f'Number of curves does not match: len(T_range) = {len(T_range)}, len(S_a_ranges) = {S_a_ranges_len}')
+        if len(err_msgs) > 0:
+            err_msg = '\n'.join(err_msgs)
+            raise ValueError(err_msg)
+        
+        # calculate the spectral pseudo velocities
+        S_v_ranges = [[9.81 * 0.5 / pi * T * S_a 
+                    for T, S_a in zip(T_range, S_a_range)] 
+                    for S_a_range in S_a_ranges]
+        
+        figsize = kwargs.get('figsize', (10,8))
+        fig0, ax0 = plt.subplots(figsize = figsize)
+        [ax0.loglog(T_range, S_v_range, label=s_c) 
+        for s_c, S_v_range in zip(titles, S_v_ranges)]
+        # ax0.loglog(T_code_s, S_v_g, marker = 'o') # marking the results for the building period
+
+        ax0.grid(True)
+        #fig = plt.gcf(); fig.set_size_inches(16,8)
+        ax0.legend(titles)
+
+        ##### Tripartite Lines ###########
+        x0 = fig0.axes[0].get_xlim() #; print(x0)
+        y0 = fig0.axes[0].get_ylim() #; print(y0)
+        
+        T_min, T_max = x0  
+        log_T_min, log_T_max = log10(T_min), log10(T_max)
+        #print('T_min, T_max', T_min, T_max)
+        
+        v_min, v_max = y0  
+        log_v_min, log_v_max = log10(v_min), log10(v_max)
+        #print('v_min, v_max', v_min, v_max)
+        
+        a_min, a_max = [2.0 * pi / T * v 
+                        for v, T in ((v_min, T_max),(v_max, T_min))]
+        log_a_min, log_a_max = log10(a_min), log10(a_max)
+        #print('a_min, a_max', a_min, a_max)
+        
+        d_min, d_max = [0.5 / pi * T * v 
+                        for v, T in ((v_min, T_min),(v_max, T_max))]
+        log_d_min, log_d_max = log10(d_min), log10(d_max)
+        #print('d_min, d_max', d_min, d_max)
+        
+        # Calculate a-values and d-values on the log-log line between a_min & a_max and d_min & d_max respectively
+        major_lines = kwargs.get('major_lines', [1, 2, 3, 4, 5, 6, 7, 8, 9])
+        
+        a_fac, a_unit = (1.0, 'm/s^2')
+        #a_fac, a_unit = (9.81, 'g') # does not work!
+        
+        d_fac, d_unit = (1.0, 'm')
+        
+        #===========
+        # generate the list of acceleration lines provided they are within the limits
+        a_list = [(m * 10**float(n)) 
+                for n in range(int(log10(a_min))-2, int(log10(a_max))) 
+                for m in major_lines if (m * 10**float(n) * a_fac > a_min) and (m * 10**float(n) * a_fac < a_max)]
+        a_prec = [max(0,int(1+log10(0.99/a))) for a in a_list]
+        a_str = ['{:.{prec}f} {}'.format(a, a_unit, prec=p) 
+                for a, p in zip(a_list, a_prec)]
+        a_values = [a * a_fac for a in a_list]
+        #[print(a,b,s) for a,b,s in zip(a_list, a_values, a_str)]
+        
+        # generate the list of displacement lines provided they are within the limits
+        d_list = [(m * 10**float(n)) 
+                for n in range(int(log10(d_min)), int(log10(d_max))+1) for m in major_lines if (m * 10**float(n) * d_fac > d_min) and (m * 10**float(n) / d_fac < d_max)]
+        d_prec = [max(0,int(1+log10(0.99/d))) 
+                for d in d_list]
+        d_str = ['{:.{prec}f} {}'.format(d, d_unit, prec=p) 
+                for d, p in zip(d_list, d_prec)]
+        d_values = [d * d_fac for d in d_list]
+        #print('d_values (min & max)', d_values[0], d_values[-1])
+        # 
+        log_a_values = [log10(a) for a in a_values]
+        log_d_values = [log10(d) for d in d_values]
+
+        #change the following lines
+        #a_ls = ['-' if abs(a + log10(a_fac) - int(a + log10(a_fac))) < 0.001 else ':' for a in log_a_values]
+        a_ls = ['-' if abs(log10(a) - int(log10(a))) < 0.001 else ':' for a in a_list]
+        #d_ls = ['-' if abs(d - int(d)) < 0.001 else ':' for d in log_d_values]
+        d_ls = ['-' if abs(log10(d) - int(log10(d))) < 0.001 else ':' for d in d_list]
+
+        ta_values = [(a - log_a_min)/(log_a_max - log_a_min) for a in log_a_values]
+        #print('ta_min, ta_max', ta_values[0], ta_values[-1])
+        td_values = [(d - log_d_min)/(log_d_max - log_d_min) for d in log_d_values]
+        #print('td_min, td_max', td_values[0], td_values[-1])
+
+        va_values = [log_v_min + t * (log_v_max - log_v_min) for t in ta_values]
+        #print('va_min, va_max', 10**va_values[0], 10**va_values[-1])
+        vd_values = [log_v_min + t * (log_v_max - log_v_min) for t in td_values]
+        #print('vd_min, vd_max', 10**vd_values[0], 10**vd_values[-1])
+
+        Ta_values = [log_T_max + t * (log_T_min - log_T_max) for t in ta_values]
+        #print('Ta_min, Ta_max', 10**Ta_values[0], 10**Ta_values[-1])
+        Td_values = [log_T_min + t * (log_T_max - log_T_min) for t in td_values]
+        #print('Td_min, Td_max', 10**Td_values[0], 10**Td_values[-1])
+
+        #s1
+        s_a2 = [min(log_v_max - v, log_T_max - T) for v, T in zip(va_values, Ta_values)]
+        s_a1 = [max(log_v_min - v, log_T_min - T) for v, T in zip(va_values, Ta_values)]
+        #print('s_a1[0], s_a2[0]', s_a1[0], s_a2[0])
+
+        # identifying the index of the longest acceleration line
+        (m_a, i_a) = max((v2-v1,i) for i, (v1, v2, als) in enumerate(zip(s_a1, s_a2, a_ls)) if als == '-')
+        #print('m_a, i_a', m_a, i_a)
+
+        #s1
+        s_d2 = [max(v - log_v_max, log_T_min - T) for v, T in zip(vd_values, Td_values)]
+        s_d1 = [min(v - log_v_min, log_T_max - T) for v, T in zip(vd_values, Td_values)]
+        #print('s_d1[0], s_d2[0]', s_d1[0], s_d2[0])
+
+        # identifying the index of the longest displacement line
+        (m_d, i_d) = max((v1-v2,i) for i, (v1, v2, dls) in enumerate(zip(s_d1, s_d2, d_ls)) if dls == '-')
+        #print('m_d, i_d', m_d, i_d)
+
+        # calculate the coordinates of the ends of the acceleration lines
+        a_coords = [((10**(T+s1), 10**(T+s2)), (10**(v+s1), 10**(v+s2))) for v, T, s1, s2 in zip(va_values, Ta_values, s_a1, s_a2)]
+        a_lines = [lines.Line2D(P1, P2, transform=ax0.transData, axes=ax0, color='grey', ls = ls, lw = 0.5, zorder=0) for (P1, P2), ls in zip(a_coords, a_ls)]
+
+        # calculate the coordinates of the ends of the displacement lines
+        d_coords = [((10**(T+s1), 10**(T+s2)), (10**(v-s1), 10**(v-s2))) for v, T, s1, s2 in zip(vd_values, Td_values, s_d1, s_d2)]
+        d_lines = [lines.Line2D(P1, P2, transform=ax0.transData, axes=ax0, color='grey', ls = ls, lw = 0.5, zorder=0) for (P1, P2), ls in zip(d_coords, d_ls)]
+
+        #print('a_coords', a_coords[i_a])
+        #print('d_coords', d_coords[i_d])
+
+        ax_lines = [lines.Line2D(P1, P2, transform=ax0.transData, axes=ax0, color='magenta', ls = '-', lw = 1.0, zorder=0) for (P1, P2) in [a_coords[i_a], d_coords[i_d]]]
+
+        ax0.lines.extend(a_lines + d_lines + ax_lines) #, l3, l4])
+
+        #ax0.text(0.5*(T_min + T_max), 0.5*(v_min + v_max), "text on plot $m/s^2$")
+        [ax0.text(10**T, 10**v, '$'+txt+'$', rotation=45, zorder=0.1) for T, v, txt in zip(Ta_values, va_values, a_str)]
+        [ax0.text(10**T, 10**v, '$'+txt+'$', rotation=-45, zorder=0.1) for T, v, txt in zip(Td_values, vd_values, d_str)]
+        
+        # plot any additionally provided points
+        if len(plot_pts) > 0:
+            [ax0.plot(T, v, marker = 'o') for T,v in plot_pts]
+        
+        fig0.suptitle(plot_title)
+
+        return fig0
+
+except Exception as e:
+    def ASCE41_17_tripartite_plot(**kwargs):
+        print(e)
+
+    def tripartite_plot_ranges(**kwargs):
+        print(e)

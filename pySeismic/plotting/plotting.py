@@ -4,23 +4,71 @@ be generated elsewhere, for example from eqsigs.
 
 """
 
-from math import log, pi, sin, cos, tan, acos, asin, atan, atan2, log, log10
+from typing import Union, List, Tuple, Dict, Any
+from math import log, pi, tau, sin, cos, tan, acos, asin, atan, atan2, log, log10
 from itertools import accumulate
 import matplotlib.pyplot as plt
 import matplotlib.lines as lines
 
 
+List_of_lists = Union[
+    List[List[float]], 
+    List[Tuple[float]], 
+    Tuple[List[float]],
+                            ]
+List_of_list_of_lists = Union[
+    List[List_of_lists],
+    Tuple[List_of_lists],
+                            ]
+List_of_list_of_list_of_lists = Union[
+    List[List_of_list_of_lists],
+    Tuple[List_of_list_of_lists],
+                            ]
+
+
+def reorganise_plot_data(
+        list_of_list_of_lists: List_of_list_of_lists
+        ):
+    """Transposes lists of lists of vectors into lists
+    of tuples of like coordinates.
+    
+    This is a process of transposition. For example, the
+        ((a1,b1),(a2,b2),(a3,b3), ...),
+                    ((c1,d1),(c2,d2),(c3,d3), ...)
+        ->
+        ((a1,a2,a3, ...),(c1,c2,c3, ...)),
+                    ((b1,b2,b3, ...),(d1,d2,d3, ...))
+    This is particularly useful where data is in the form
+    of (x,y) pairs and you have multiple sets of these
+    that you want to plot, but the plot function is looking
+    for lists of x and lists of y and you want to plot multiple
+    sets of these.
+    """
+    transposed_data = zip(
+    *[new_list 
+      for new_list in [zip(*each_list) 
+                       for each_list 
+                       in list_of_list_of_lists]]
+    )
+    return transposed_data
+
+
 
 def tripartite_plot(
-    T_ranges, 
-    S_v_ranges, 
-    series_names = [],
-    plot_pts=[], 
-    debug=False, 
-    figsize=(10,8), 
-    suptitle='', 
-    minor_lines = [1, 2, 3, 4, 5, 6, 7, 8, 9],
-    **kwargs
+    T_ranges: Union[List,
+        List_of_list_of_lists,
+        List_of_lists], 
+    S_v_ranges: Union[List_of_list_of_lists,
+                      List_of_list_of_list_of_lists], 
+    series_names: List[str] = [],
+    plot_pts: List[float] = [], 
+    debug: bool = False, 
+    figsize: Tuple[float] = (10,8), 
+    suptitle: str ='', 
+    spec_type: chr = 'V',
+    units: str = None,
+    minor_lines: List[int] = [1, 2, 3, 4, 5, 6, 7, 8, 9],
+    **kwargs,
     ):
     """Plots tripartite data
         minorlines is a list of the minor log lines to plot (default [1,2,3,4,5,6,7,8,9])
@@ -35,16 +83,34 @@ def tripartite_plot(
     * https://matplotlib.org/stable/api/_as_gen/matplotlib.lines.Line2D.html
 
     Args:
-        T_ranges: collection of time values (each as a collection of floats)
-            if there is only one item, it is assumed that the range is the same for all plots
+        T_ranges: collection of time values (each as a collection of 
+            floats) if there is only one item, it is assumed that the 
+            range is the same for all plots. If an empty list is passed
+            to the function, it assumes that all the data is in the
+            PS_a_ranges function as T,S pairs.
         S_v_ranges: collection of spectral velocities (each as a collection of floats)
         series_names (list[str]): one name for each S_v_range
         plot_pts (list[tuple,list]): (T, S_v) points for plotting 
+        debug: if True then some intermediate results are printed to terminal
+        figsize: size of the plot (width, height)  in inches
+        suptitle: main title for the figure
+        spec_type: 
         kwargs: parameters for passing through to `plot`
+    Returns:
+        Figure
     """
     # One of the challenges is the need to switch between plain and log10 values
     # 
-    
+    if T_ranges == []:
+        T_ranges, S_v_ranges = reorganise_plot_data(S_v_ranges)
+    if spec_type == 'A':
+        rspec_ag_to_v = lambda T, a: a * 9.81 * T / tau
+        S_v_ranges = [[rspec_ag_to_v(t, sa) 
+            for t, sa in zip(T_range, Sa_range)] 
+            for T_range, Sa_range in zip(T_ranges, S_v_ranges)]
+
+
+
     # Standardise period and check that numbers align
     if isinstance(T_ranges[0],(int, float)):
         T_ranges = len(S_v_ranges) * [T_ranges]
@@ -256,6 +322,7 @@ def tripartite_plot(
                 for T, v, txt in zip(log_Td_values, log_vd_values, d_str)]
     
     # Legend
+    if debug: print(f'Data length: {len(S_v_ranges)}, names:{len(series_names)}')
     if len(series_names) == 0:
         pass
     elif len(series_names) == len(S_v_ranges):
@@ -270,16 +337,30 @@ def tripartite_plot(
     return fig0
 
 
-def response_spectrum_plots(T_ranges, PS_a_ranges, series_names, 
-                            plot_pts=[], debug=False, **kwargs):
+def response_spectrum_plots(
+        T_ranges: Union[List,
+            List_of_lists,
+            List_of_list_of_lists
+        ], 
+        PS_a_ranges: Union[List_of_list_of_lists,
+                           List_of_list_of_list_of_lists], 
+        series_names: List[str], 
+        plot_pts: List_of_lists=[], 
+        debug: bool =False, 
+        **kwargs: Dict[str, Any]
+                            ):
     """Generates a set of pseudo response spectrum plots based on 
     spectral acceleration (units of g)
 
     Args:
         T_ranges (list[float]: time values - it is assumed that the 
-            range is the same for all plots 
+            range is the same for all plots. If an empty list is passed
+            to the function, it assumes that all the data is in the
+            PS_a_ranges function as T,S pairs.
         PS_a_ranges: pseudo spectral acceleration (assumed to be 
-            in units of g)
+            in units of g). If Period data is in T_ranges, then data 
+            should be list of list of lists. Otherwise each data point 
+            should be a (T,S) pair.
         series_names (list[str]): one title for each S_a_range
         plot_pts (list[tuple,list]): (T, S_v) points for plotting 
         kwargs: parameters for passing through to? Nowhere at present
@@ -288,6 +369,7 @@ def response_spectrum_plots(T_ranges, PS_a_ranges, series_names,
     suptitle = kwargs.get('suptitle', '')
     T_max = kwargs.get('T_max', None)
 
+
     if debug: 
         print()
         print(f'figsize = {figsize}')
@@ -295,7 +377,17 @@ def response_spectrum_plots(T_ranges, PS_a_ranges, series_names,
         print(f'Number of series_names = len(series_names)\n')
     
     # Standardise period and check that numbers align
-    if isinstance(T_ranges[0],(int, float)):
+    if T_ranges == []:
+        if debug: print('No period data provided')
+        if isinstance(
+            PS_a_ranges, 
+            List_of_list_of_list_of_lists
+            ):
+            T_ranges, PS_a_ranges = reorganise_plot_data(PS_a_ranges)
+        else:
+            if debug: print('No period data provided as part of PS_a_ranges')
+            return None
+    elif isinstance(T_ranges[0],(int, float)):
         if debug: print('(1) T_ranges is a single collection')
         T_ranges = len(PS_a_ranges) * [T_ranges]
     elif len(T_ranges) == 1 and isinstance(T_ranges[0],(tuple, list)):
@@ -423,23 +515,34 @@ def response_spectrum_plots(T_ranges, PS_a_ranges, series_names,
     return figs
 
 
-def EQ_plots(TH_dict, RS_dict):
+def EQ_plots(EQ_dict, 
+             event_key = 'EVENT_NAME',  # or EVENT_ID
+             station_key = 'STATION_CODE', 
+             eqdate_key = 'EVENT_DATE_YYYYMMDD',
+             eqtime_key = 'EVENT_TIME_HHMMSS',
+             eqdir_key = 'STREAM',
+             datatype_key = 'DATA_TYPE', 
+             data_key = 'Data',  
+             events_list = [],
+             scaling = 1.0 / 9.81,
+             display_units = 'g'
+             ):
     """Returns a list of plots based on data in a pair of matching 
     dictionaries of time history and response spectrum
 
-    These dictionaries should be generated by the ASC_import2 function. The data 
+    These dictionaries should be generated by the ASC_import function. The data 
     for 'date', 'station', 'direction' etc assume a certain key format:
         key = "20230206011732_4628" -> Date:2023-02-06 01:17 Station:4628
 
     It is further assumed that the directions of the motion are 
     
     Args:
-        TH_dict: a dictionary containing earthquake ground acceleration data under the following keys
+        EQ_dict: a dictionary containing earthquake 
+            ground acceleration data under the following keys
             - ground motion as list of (t, a) under keys such as 'E', 'N', 'U'.
             - xlabel and ylabel
-        RS_dict: 
-            - response spectra as list of (T, Sa) under keys such as 'E', 'N', 'U'.
-            - 
+            and response spectra as list of (T, Sa) under keys such as 'E', 'N', 'U'.
+            
     Returns:
         a list of figure objects
     """
@@ -447,24 +550,261 @@ def EQ_plots(TH_dict, RS_dict):
     # eq_dates = [f'{eq[:4]}-{eq[4:6]}-{eq[6:8]} {eq[8:10]}:{eq[10:12]}' for eq in TH_dict.keys()]
     # eq_stations = [f'{eq[-4:]}' for eq in TH_dict.keys()]
 
+    keys = (event_key, station_key, eqdate_key, eqtime_key, eqdir_key, datatype_key)
+    meta_data = [[v.get(key,None) for key in keys] 
+              for k, v in EQ_dict.items()
+              if v.get(datatype_key, ['None']).startswith('Acceleration')]
+
+    # events, stations, eqdates, eqtimes, eqdirs, data_types = zip(*meta_data)
+    events, stations, *_ = zip(*meta_data)
+    if len(events_list) == 0:
+        ev_st_list = [(ev, st) for ev in set(events) for st in set(stations)]
+    else:
+        ev_st_list = [(ev, st) for ev in set(events) for st in set(stations) if ev in events_list]
+
+    meta_dict = {}
+    for ev, st in ev_st_list:
+        meta_list = meta_dict.get((ev,st), [])
+        meta_list.extend([m for m in meta_data if (m[0] == ev and m[1] == st)])
+        meta_dict[(ev,st)] = meta_list
+    
+    # Acquire EQ directions (we need three) and data types (we want TH & RS)
+    dates_dict =  {k:list(set(vv[2] for vv in v)) for k,v in meta_dict.items()}
+    times_dict =  {k:list(set(vv[3] for vv in v)) for k,v in meta_dict.items()}
+    eq_dirs_dict = {k:list(set(vv[4] for vv in v)) for k,v in meta_dict.items()}
+    d_types_dict = {k:list(set(vv[5] for vv in v)) for k,v in meta_dict.items()}
+    # print('this', eq_dirs, d_types)
+
+    # data_key = event_key
     figs_list = []
-    for eq in TH_dict.keys():
-        eq_date = f'{eq[:4]}-{eq[4:6]}-{eq[6:8]} {eq[8:10]}:{eq[10:12]}'
-        eq_station = f'{eq[-4:]}'
-        suptitle = f'Station: {eq_station},    Date: {eq_date}'
+    for ev, st in ev_st_list:
+        d_types = list(d_types_dict.get((ev, st), []))
+        print(ev, st, d_types)
         
-        figs_list.append(EQ_plot(
-            eq, TH_dict, RS_dict, ('E', 'N', 'U'), 
-            rs_xlim = (0,None), 
-            eq_date = eq_date,
-            suptitle = suptitle
-        ))
+        if len(d_types) == 2:
+            eq_dirs = eq_dirs_dict.get((ev, st), [])
+            eqdate = dates_dict.get((ev, st),'')
+            eqtime = times_dict.get((ev, st),'')
+            TH_type, RS_type = d_types if 'spectrum' in d_types[1].casefold() else d_types[::-1]
+            th_dict = {v.get(eqdir_key,'None'):v.get(data_key,[]) for _, v in EQ_dict.items() if 
+                       all([v.get(event_key) == ev,
+                           v.get(station_key) == st,
+                           v.get(datatype_key) == TH_type,
+                           ])}
+            rs_dict = {v.get(eqdir_key,'None'):v.get(data_key, []) for _, v in EQ_dict.items() if 
+                       all([v.get(event_key) == ev,
+                           v.get(station_key) == st,
+                           v.get(datatype_key) == RS_type,
+                           ])}
+            th_data = [th_dict.get(dirn, []) for dirn in eq_dirs]
+            rs_data = [rs_dict.get(dirn, []) for dirn in eq_dirs]
+            
+            # print(th_dict)
+            # print(rs_dict)
+        
+            suptitle = f'Station: {st},    Date: {eqdate[0]+"-"+eqtime[0]}'
+            
+            # print('Calling plot function')
+            # print('lengths', len(th_data), len(rs_data))
+            # print('lengths', [len(th) for th in th_data], [len(rs) for rs in rs_data])
+            # print('eq_dirs:', eq_dirs)
+            # print('suptitle:', suptitle)
+            figs_list.append(
+                EQ_plot(
+                    th_data, rs_data, 
+                    eq_name='', 
+                    eq_dirs=eq_dirs, 
+                    rs_xlim = (0,None), 
+                    eq_date = eqdate[0],
+                    suptitle = suptitle,
+                    scaling=scaling,
+                    display_units = display_units
+                ))
     
     return figs_list
 
 
+def EQ_plot(TH_data, RS_data, 
+            eq_name='EQ', 
+            eq_dirs = ['X', 'Y', 'Z'], 
+            eq_date = '', 
+            suptitle = '', 
+            rs_xlim = (0, None), 
+            figsize = (18,18),
+            scaling = 1.0 / 9.81,
+            display_units = 'g'):
+    """Plots earthquake motion data for ground accelerations and 
+    response spectra in a 3x2 grid and prints to file (SVG & PNG).
+    
+    Args:
+        TH_data: 
+        RS_data: 
+        eq_name: is the key to the relevant earthquake in the dictionaries 
+        generated by the ASC_import2 function
+    'eq_dirs' must be keys in the dictionary referring to direction 
+    for each record, 
+        e.g. 'E', 'N', 'U'
+    """
+    
+    # print('lengths', len(TH_data), len(RS_data))
+    # print('lengths', [len(th) for th in TH_data], [len(rs) for rs in RS_data])
+        
+    if len(TH_data) == len(RS_data) == len(eq_dirs):
+        nrows = len(eq_dirs)
+    else:
+        raise ValueError('TH_data, RS_data & eq_dirs should have same number of parts')
+    
+    series_names = []
 
-def EQ_plot(eq, TH_dict, RS_dict, eq_dirs, eq_date = '', 
+    fig, axes = plt.subplots(
+        nrows=nrows, ncols=2, figsize=figsize
+        ) # this is the overall Figure and the Axes object
+    fig.suptitle(suptitle)
+    
+    lts = ['-' for _ in eq_dirs]
+    # print('\nlts', lts)
+    
+    for i, (th_data, rs_data, eqd, ax, lt) in enumerate(zip(TH_data, RS_data, eq_dirs, axes, lts)):
+        color = f'C{i}'
+        # Plotting the data...
+        tE, aE = zip(*th_data) # assumes these come in as SI as default
+        aE = [a * scaling for a in aE] # assumes plotting g units as default
+        ax[0].hlines(0, 0, tE[-1], colors='k', lw=2)
+        ax[0].plot(tE, aE, lt, color=color)
+        ax[0].set_title(f'Acceleration - {eqd}')
+        ax[0].set_xlabel('Time (s)')
+        ax[0].set_ylabel(f'Acceleration ({display_units})')
+        ax[0].set_xlim((0, tE[-1]))
+        tE, aE = zip(*rs_data)
+        aE = [a * scaling for a in aE] # assumes plotting g units as default
+        ax[1].plot(tE, aE, lt, color=color)
+        ax[1].set_title(f'Response Spectrum - {eqd}')
+        series_names.append(f'{eq_date} ({eqd})')
+        ax[1].set_xlabel('Period (s)')
+        ax[1].set_ylabel(f'Acceleration ({display_units})')
+        ax[1].set_xlim(rs_xlim)
+        ax[1].set_ylim((0, None))
+        
+        for axx in ax:
+            # axx.grid(True)
+            axx.minorticks_on()
+            axx.grid(True, which='major', linestyle='-', linewidth=0.5)
+            axx.grid(True, which='minor', linestyle='--', linewidth=0.25)
+        
+        
+    fig.tight_layout()
+    # fig.savefig(eq_name + '.svg')
+    # fig.savefig(eq_name + '.png')
+
+    return fig
+
+
+def RS_plot(RS_sets:List_of_list_of_lists, 
+            data_type:str = 'A', 
+            titles:List[str] = [], 
+            plot_type:str = 'plot',
+            g:float = 9.81, 
+            figsize:Tuple[int,int]=(12,16),
+            **kwargs) -> Any:
+    """
+    Generates three plots of A, V, D Response Spectra
+    
+    Args:
+        RS_sets: these are the response spectra data
+            which should be as lists of lists of (t, s) pairs
+            i.e. if you only want to plot one spectrum you
+            should place it as one item in a list, e.g. [spectrum_data]
+        data_type: Specifies the type of data in the RS_sets:
+            'A', 'V' or 'D' (default is 'A')
+        titles: the number of titles should match the 
+            number of spectra, otherwise generic titles will
+            be substituted
+        plot_type: plot type, either 'plot', 'loglog', 'semilogx'
+            or 'semilogy' (default is 'plot', i.e. linear)
+        g: optional scaling factor to apply to acceleration 
+            spectum data (default 9.81), 
+        figsize: figure size (default is (12,16))
+        
+
+    """
+    xlim = kwargs.get('xlim', (None, None))
+    suptitle = kwargs.get('suptitle', None)
+    
+    if len(titles) != len(RS_sets):
+        titles = [f'Spectrum {i:00d}' for i, _ in enumerate(RS_sets)]
+
+    # Functions, scaling factor for acceleration
+    # note: tau = 2.0 * pi
+    rspec_ag_to_a = lambda T, a: (T, a * g)
+    rspec_ag_to_v = lambda T, a: (T, a * g * T / tau)
+    rspec_v_to_a = lambda T, v: (T, v * tau / T)
+    rspec_a_to_v = lambda T, a: (T, a * T / tau)
+    rspec_v_to_d = lambda T, v: (T, v * T / tau)
+    rspec_d_to_v = lambda T, d: (T, d * tau / T)
+
+    SA_max = []
+    SV_max = []
+    SD_max = []
+
+    fig, axs = plt.subplots(nrows=3, ncols=1, figsize=figsize)
+
+    if plot_type == 'loglog':
+        ax_plot = [ax.loglog for ax in axs]
+    elif plot_type == 'semilogx':
+        ax_plot = [ax.semilogx for ax in axs]
+    elif plot_type == 'semilogy':
+        ax_plot = [ax.semilogy for ax in axs]
+    else:
+        ax_plot = [ax.plot for ax in axs]
+    
+    for T_S in RS_sets:
+        if data_type == 'A':
+            T_SA = [rspec_ag_to_a(t, sa) for t, sa in T_S]
+            T_SV = [rspec_a_to_v(t, sa) for t, sa in T_SA]
+            T_SD = [rspec_v_to_d(t, sv) for t, sv in T_SV]
+        elif data_type == 'V':
+            T_SV = list(T_S)
+            T_SA = [rspec_v_to_a(t, sv) for t, sv in T_SV]
+            T_SD = [rspec_v_to_d(t, sv) for t, sv in T_SV]
+        elif data_type == 'D':
+            T_SD = T_S
+            T_SV = [rspec_d_to_v(t, sd) for t, sd in T_SD]
+            T_SA = [rspec_v_to_a(t, sv) for t, sv in T_SV]
+        
+        SA_max.append(max(T_SA, key=lambda x:x[1]))
+        SV_max.append(max(T_SV, key=lambda x:x[1]))
+        SD_max.append(max(T_SD, key=lambda x:x[1]))
+        
+        # legends = ['2% in 50yrs','10% in 50yrs','50% in 50yrs', 'Peak values']
+        axs[0].grid(True, 'both')
+        ax_plot[0](*list(zip(*T_SA)))
+        axs[0].set_ylabel('Spectral Acceleration (m/s^2)')
+        axs[1].grid(True, 'both')
+        axs[1].set_ylabel('Spectral Velocity (m/s)')
+        ax_plot[1](*list(zip(*T_SV)))
+        axs[2].grid(True, 'both')
+        axs[2].set_xlabel('Period (sec)')
+        axs[2].set_ylabel('Spectral Displacement (m)')
+        ax_plot[2](*list(zip(*T_SD)))
+
+    titles.append('Peak values')
+    ax_plot[0](*zip(*[(t, a) for t, a in SA_max]),'o')
+    axs[0].legend(titles)
+    ax_plot[1](*zip(*[(t, v) for t, v in SV_max]),'o')
+    axs[1].legend(titles)
+    ax_plot[2](*zip(*[(t, d) for t, d in SD_max]),'o')
+    axs[2].legend(titles)
+    # print(*zip(*[(t, a) for t, a in SA_max]))
+    # print(SA_max)
+    # print(SV_max)
+    # print(SD_max)
+    if suptitle is not None:
+        fig.suptitle(suptitle)
+    
+    return fig
+
+
+def EQ_plot_ss(eq, TH_dict, RS_dict, eq_dirs, eq_date = '', 
             suptitle = '', rs_xlim = (0, None)):
     """Plots earthquake motion data for ground accelerations and 
     response spectra in a 3x2 grid and prints to file (SVG & PNG).
@@ -495,6 +835,7 @@ def EQ_plot(eq, TH_dict, RS_dict, eq_dirs, eq_date = '',
     axes = [[ax11, ax21], [ax12, ax22], [ax13, ax23]]
     lts = ['-', '-', '-']
     for i, (eqd, ax, lt) in enumerate(zip(eq_dirs, axes, lts)):
+        
         color = f'C{i}'
         # Plotting the data...
         tE, aE = zip(*th_dict[eqd])
@@ -513,6 +854,8 @@ def EQ_plot(eq, TH_dict, RS_dict, eq_dirs, eq_date = '',
         ax[1].set_ylabel(rs_dict.get('ylabel', 'Acceleration'))
         ax[1].set_xlim(rs_xlim)
         ax[1].set_ylim((0, None))
+
+        
         
     fig.tight_layout()
     fig.savefig(eq + '.svg')
@@ -572,3 +915,107 @@ def EQ_plot(eq, TH_dict, RS_dict, eq_dirs, eq_date = '',
 #     ax0.legend(legend)
 
 #     return fig0
+
+# ========================================================
+# =================== Storey Plots =======================
+# ========================================================
+
+from pySeismic.utilities import storey_force_distribution, \
+    storey_shear_moment, shear_coords
+from matplotlib.ticker import EngFormatter
+
+def plot_storey_VM(
+        base_shears: Union[float, List, Tuple], 
+        storey_elevs: Union[List[float], Tuple[float]], 
+        storey_wts: Union[List[float], Tuple[float]], 
+        k:float = 1, 
+        base_level: float = 0, 
+        **kwargs: Dict):
+    """
+    
+    Args:
+        base_shears: base shear(s)
+        storey_elevs: storey elevations
+        storey_wts:  
+        k: (default = 1)
+        base_level: (default = 0), 
+        **kwargs
+    
+    Returns:
+        fig: Storey shear and moment plot
+    """
+
+    # x_limits = kwargs.pop('x_limits', (0, None))
+    # y_limits = kwargs.pop('y_limits', (0, None))
+    plot_title = kwargs.pop('plot_title', f'Building Shears & Moments')
+    figsize = kwargs.pop('figsize', (6,8))
+    force_units = kwargs.pop('force_units', 'kN')
+    length_units = kwargs.pop('length_units', 'm')
+    debug = kwargs.pop('debug', False)
+
+    force_scale_dict = {'N':1.0, 'kN':1000.0, 'MN':1.0E6, 'GN':1.0E9}
+    length_scale_dict = {'mm':0.001, 'cm':0.01, 'm':1.0, 'km':1000.0}
+    V_scale = force_scale_dict.get(force_units)
+    M_scale = length_scale_dict.get(length_units) * V_scale
+
+    if list(storey_elevs) == sorted(storey_elevs):
+        ascending = True
+    elif list(storey_elevs) == sorted(storey_elevs, reverse=True):
+        ascending = False
+    else:
+        raise ValueError('Storey elevations are not monotonic')
+    
+    if ascending:
+        storey_elevs = storey_elevs[::-1]
+        storey_wts = storey_wts[::-1]
+
+    storey_heights = [z2 - z1 for z2, z1 in zip(
+        storey_elevs, 
+        list(storey_elevs[1:]) + [0]
+        )]
+
+    V = base_shears if isinstance(base_shears, (list, tuple)) else [base_shears]
+
+    storey_loads = [storey_force_distribution(
+        vv, storey_elevs, storey_wts, k) for vv in V]
+    
+    storey_shears_and_moments = [storey_shear_moment(
+        forces, storey_heights, ascending) for forces in storey_loads]
+    storey_shears, storey_moments = zip(*storey_shears_and_moments)
+
+    z_V = [shear_coords(
+        storey_elevs, V, base_level) for V in storey_shears]
+
+    fig, [ax_V, ax_M] = plt.subplots(nrows=1, ncols=2, figsize=figsize)
+    fig.suptitle(plot_title)
+
+    ax_V.invert_xaxis()
+    for z_VV in z_V:
+        z_range, V_range = zip(*z_VV)
+        V_range = [V_scale * V for V in V_range]
+        ax_V.plot([0] + list(V_range), list(z_range[:1]) + list(z_range))
+    ax_V.set_xlim((None, 0))
+    ax_V.set_title('Storey Shear')
+    ax_V.set_xlabel('Shear')
+    formatterV = EngFormatter(unit='N')
+    ax_V.xaxis.set_major_formatter(formatterV)
+
+    for M_range in storey_moments:
+        M_range = [M_scale * M for M in M_range]
+        ax_M.plot([0] + M_range, list(storey_elevs) + [0])
+    ax_M.set_xlim((0, None))
+    ax_M.set_title('Storey Moment')
+    ax_M.set_xlabel('Moment')
+    formatterM = EngFormatter(unit='Nm')
+    ax_M.xaxis.set_major_formatter(formatterM)
+    
+    for ax in (ax_V, ax_M):
+        ax.set_ylim((0, None))
+        ax.minorticks_on()
+        ax.grid(True, which='major', linestyle='-', linewidth=0.5)
+        ax.grid(True, which='minor', linestyle='--', linewidth=0.25)
+        ax.tick_params(axis='x', rotation=45)
+
+
+    fig.set_tight_layout(True)
+    return fig
