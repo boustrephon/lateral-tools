@@ -251,7 +251,7 @@ def get_R_A(A):
 def full_wind_calcs(storey_heights, 
                     storey_widths_x, storey_widths_y, 
                     print_data=False, raise_error=True):
-    """Returns full set of calculations"""
+    """Returns full set of calculations for HK Wind Code 2004"""
     # This could be speeded up significantly by using numpy
     #print(f'Bottom storey height is {elevs[0]} m, top storey elevation is {elevs[-1]} m, sum of storeys is {sum(storey_heights)} m')
     dd = {}

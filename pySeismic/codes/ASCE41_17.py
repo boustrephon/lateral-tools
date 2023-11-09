@@ -152,10 +152,13 @@ def C_t_get(x):
 beta_dict = {'S1':0.80, 'S1a':0.80, 'C1':0.90, 'other':0.75}
 
 def beta_get(x):
-    """Empirical building period parameter, x (default of 0.75) Eq 4-5 & 7-18 ASCE41"""
+    """Empirical building period parameter, x (default of 0.75) 
+    Eq 4-5 & 7-18 ASCE41
+    """
     return beta_dict.get(x, 0.75)  
 
-unit_l_dict = {'m': 1.0, 'cm': 0.01, 'mm':0.001, 'in':0.0254, 'ft':0.3048, 'yd':0.9144}
+unit_l_dict = {'m': 1.0, 'cm': 0.01, 'mm':0.001, 'in':0.0254, 
+               'ft':0.3048, 'yd':0.9144}
 
 def unit_l_get(x):
     """a units scaling lookup function that returns default of None"""
@@ -553,6 +556,14 @@ M_s_4_8_dict = {'C1': {'CP':4.5, 'LS': 3.0, 'IO': 1.5},
             'URM': {'CP':1.75, 'LS': 1.25, 'IO': 1.0}}
 
 
+def table_4_8_dict_17_get(building_type, performance_level):
+    """Return Modification Factor, M_s (Table 4-8) ASCE41-17 
+    For building type and performance level"""
+    M_s_4_8 = M_s_4_8_dict.get(building_type,{}).\
+    get(performance_level,1.0)
+    return M_s_4_8
+
+
 M_s_4_9_dict = {
     'Tube': {'CP': (7.0,3.5), 'LS': (4.5,2.5), 'IO': (2.0,1.25), 'func': lambda x: x**(-0.5), 'lims': (90,190)},
     'Pipe': {'CP': (7.0,3.5), 'LS': (4.5,2.5), 'IO': (2.0,1.25), 'func': lambda x: x**(-1), 'lims': (1500,6000)},
@@ -623,11 +634,14 @@ def D_r(k_b, k_c, h, E, V_c, base_is_pinned=False):
     NB This should be doubled if base of columns is pinned
     """
     base_factor = 2 if base_is_pinned else 1
-    return V_c * (k_b + k_c) / k_b / k_c * h / 12 / E * base_factor
+    D_r = V_c * (k_b + k_c) / k_b / k_c * h / 12 / E * base_factor
+    return D_r
 
 
-def v_j_avg_rcmf(V_j, A_c, M_s, n_c, n_f, perf=None):
-    """Shear stress in concrete frame columns (Eq 4-7) ASCE41-17
+def v_j_avg_rcmf(V_j:float, A_c:float, n_c:int, n_f:int, perf:str=None) -> float:
+    """Shear stress in concrete frame columns 
+    (Eq 4-7) ASCE41-17 - section 4.4.3.2
+    
     n_c = Total number of columns;
     n_f = Total number of frames in the direction of loading;
     A_c = Summation of the cross-sectional area of all columns in the
@@ -636,23 +650,33 @@ def v_j_avg_rcmf(V_j, A_c, M_s, n_c, n_f, perf=None):
     M_s = System modification factor from dictionary below"""
     if perf is not None:
         M_s_dict = {'CP':2.0, 'LS':1.5, 'IO':1.0}
-        M_s = M_s_dict.get(perf,1.0)
-    return (n_c / (n_c -n_f)) * (V_j / A_c) / M_s
+        M_s = M_s_dict.get(perf, None)
+    v_j_avg_rcmf = (n_c / (n_c - n_f)) * (V_j / A_c) / M_s
+    return v_j_avg_rcmf
 
 
-def v_j_avg_sw(V_j, A_w, M_s):
-    """Shear stress in shear walls (Eq 4-8) ASCE41-17
+def v_j_avg_sw(V_j:float, A_w:float, wtype:str='RC', perf:str=None) -> float:
+    """Shear stress in shear walls 
+    (Eq 4-8) ASCE41-17 - section 4.4.3.3 
+    
     V_j = Story shear at level j computed in accordance with Section 4.4.2.2;
     A_w = Summation of the horizontal cross-sectional area of all
     shear walls in the direction of loading. Openings shall be
-    taken into consideration where computing A_w. For masonry walls, the net area shall be used. For wood-framed
+    taken into consideration where computing A_w. For masonry walls, 
+    the net area shall be used. For wood-framed
     walls, the length shall be used rather than the area; and
     M_s = System modification factor - shall be taken from Table 4-8."""
+    if perf is not None:
+        M_s_dict = {'CP': 4.5, 'LS': 3.0, 'IO': 1.5} if wtype == 'RC' \
+            else {'CP': 1.75, 'LS': 1.25, 'IO': 1.0}
+        M_s = M_s_dict.get(perf,None)
     return V_j / A_w / M_s
 
 
-def v_j_avg_br(V_j, s, N_br, L_br, A_br, M_s):
-    """Axial stress in diagonal bracing (Eq 4-9) ASCE41-17
+def v_j_avg_br(V_j, s:float, N_br, L_br, A_br, M_s) -> float:
+    """Axial stress in diagonal bracing 
+    (Eq 4-9) ASCE41-17 - section 4.4.3.4
+    
     L_br = Average length of the braces (ft);
     N_br = Number of braces in tension and compression if the braces
     are designed for compression, number of diagonal braces
@@ -664,8 +688,9 @@ def v_j_avg_br(V_j, s, N_br, L_br, A_br, M_s):
     return V_j / s / N_br * (L_br * A_br) / () / M_s
 
 
-def M_gj(V_j, n_c, n_f, h, M_s, perf=None):
-    """Precast moment frame connection strength (Eq 4-10) ASCE41-17
+def M_gj(V_j:float, n_c:int, n_f:int, h:float, perf:str=None) -> float:
+    """Precast moment frame connection strength 
+    (Eq 4-10) ASCE41-17 - section 4.4.3.5
     n_c = Total number of columns;
     n_f = Total number of frames in the direction of loading;
     V_j = Story shear at the level directly below the connection
@@ -674,65 +699,226 @@ def M_gj(V_j, n_c, n_f, h, M_s, perf=None):
     M_s = System modification factor from dictionary below"""
     if perf is not None:
         M_s_dict = {'CP':2.5, 'LS':1.5, 'IO':1.0}
-        M_s = M_s_dict.get(perf,1.0)
+        M_s = M_s_dict.get(perf, None)
     return  V_j / (n_c - n_f) * h / 2 / M_s
 
 
-def p_ot(V, h_n, L, n_f, A_col, M_s, perf=None):
-    """Column axial stress caused by overturning (Eq 4-11) ASCE41-17
-    n_f = Total number of frames in the direction of loading;
-    V = Pseudo seismic force;
-    h_n = Height (ft) above the base to the roof level;
-    L = Total length of the frame (ft);
-    M_s = System modification factor from dictionary below
-    A_col = Area of the end column of the frame."""
+def p_ot(V:float, h_n:float, L:float, 
+         n_f:int, A_col:float, perf:str=None) -> float:
+    """Column axial stress caused by overturning 
+    (Eq 4-11) ASCE41-17 - section 4.4.3.6
+
+    Args:
+        V (float): Pseudo seismic base shear force (kip)
+        h_n (float): Height (ft) above the base to the roof level
+        L (float): Total length of the frame (ft)
+        n_f (int): Total number of frames in the direction of loading
+        A_col (float): Area of the end column of the frame
+        perf (str, optional): Performance level (IO, LS or CP). Defaults to None.
+
+    Returns:
+        float: _description_
+    """
     if perf is not None:
         M_s_dict = {'CP':2.5, 'LS':1.5, 'IO':1.0}
         M_s = M_s_dict.get(perf,1.0)
     return 2 / 3 * (V * h_n) / (L * n_f) / A_col / M_s
 
 
-def T_c(ksi, S_XS, w_p, A_p, perf=None):
-    """Flexible Diaphragm Connection Forces (Eq 4-12) ASCE41-17
-    w_p = Unit weight of the wall;
-    A_p = Area of wall tributary to the connection;
-    ksi from dictionary below
-    S_XS = short period spectral acceleration
+def T_c(S_XS:float, 
+        w_p:float, A_p:float, 
+        perf:str=None) -> float:
+    """Flexible Diaphragm Connection Forces 
+    (Eq 4-12) ASCE41-17 - Section 4.4.3.7
+
+    Args:
+        S_XS (float): short period spectral acceleration (g)
+        w_p (float): Unit weight of the wall (kip)
+        A_p (float): Area of wall tributary to the connection (in^2)
+        perf (str, optional): Performance level (IO, LS or CP). Defaults to None.
+
+    Returns:
+        float: Flexible diaphragm connection forces (kip) (ASCE41-17 - Section 4.4.3.7)
     """
     if perf is not None:
-        ksi_dict = {'CP':1.0, 'LS':1.3, 'IO':1.8}
-        ksi = ksi_dict.get(perf,1.8)
-    return ksi * S_XS * w_p * A_p
+        psi_dict = {'CP':1.0, 'LS':1.3, 'IO':1.8}
+        psi = psi_dict.get(perf,1.8)
+    return psi * S_XS * w_p * A_p
 
 
-def f_p(f_pe, n_p, A_p):
-    """Prestressed element prestress (Eq 4-13) ASCE41-17
-    f_pe = Effective force of a prestressed strand;
-    n_p = Number of prestressed strands; and
-    A_p = Gross area of prestressed concrete elements"""
+def f_p(f_pe:float, n_p:int, A_p:float) -> float:
+    """Prestressed element prestress 
+    (Eq 4-13) ASCE41-17 - Section 4.4.3.8
+    
+    Args:
+        f_pe (float): Effective force of a prestressed strand;
+        n_p (int): Number of prestressed strands; and
+        A_p (float): Gross area of prestressed concrete elements
+
+    Returns:
+        float: Element prestress (ASCE41-17 - Section 4.4.3.8)
+    """
     return f_pe * n_p / A_p
 
 
-def f_j_avg_smf(V_j, M_s, n_c, n_f, h, Z, perf=None):
-    """Shear stress in coluns and beams of steel moment frames (Eq 4-14) ASCE41-17
-    n_c = Total number of frame columns at the level, j, under consideration.
-    n_f = Total number of frames in the direction of loading at the level, j, under consideration.
-    V_j = Story shear computed in accordance with Section 4.4.2.2.
-    h = Story height (in.).
-    Z = For columns, the sum of the plastic section moduli of all
-    the frame columns at the level under consideration. For
-    beams, it is the sum of the plastic section moduli of all the
-    frame beams with moment-resisting connections. If a
-    beam has moment-resisting connections at both ends, then
-    the contribution of that beam to the sum is twice the plastic
-    section modulus of that beam (in3).
-    M_s = System modification factor; Ms shall be taken from dictionary below
-        provided columns and beams satisfy the checklist items for compactness and column axial stress. 
-        Otherwise “Noncompliant"""
+def f_j_avg_smf(V_j:float, M_s:float, 
+                n_c:int, n_f:int, 
+                h:float, Z:float, perf:str=None
+                ) -> float:
+    """Shear stress in columns and beams of steel moment frames 
+    (Eq 4-14) ASCE41-17 - Section 4.4.3.9
+
+    Args:
+        V_j (float): Story shear computed in accordance with Section 4.4.2.2.
+        M_s (float): System modification factor; Ms shall be taken from dictionary below
+                        provided columns and beams satisfy the checklist items 
+                        for compactness and column axial stress. 
+                        Other`wise "Noncompliant"
+        n_c (int): Total number of frame columns at the level, j, under consideration.
+        n_f (int): Total number of frames in the direction of loading at the level, j, 
+                        under consideration.
+        h (float): Story height (in.).
+        Z (float): For columns, the sum of the plastic section moduli of all
+                    the frame columns at the level under consideration. For
+                    beams, it is the sum of the plastic section moduli of all the
+                    frame beams with moment-resisting connections. If a
+                    beam has moment-resisting connections at both ends, then
+                    the contribution of that beam to the sum is twice the plastic
+                    section modulus of that beam (in3).
+        perf (str, optional): Performance level ('IO', 'LS', or 'CP'). Defaults to None,
+                    which returns no result.
+
+    Returns:
+        float: Shear stress in columns and beams of steel moment frames
+    """
     if perf is not None:
         M_s_dict = {'CP':9.0, 'LS':6.0, 'IO':2.5}
         M_s = M_s_dict.get(perf,1.0)
     return V_j * (n_c / (n_c -n_f)) * (h / 2 / Z) / M_s
+
+
+func_dict = {
+    '4.4.3.2' : v_j_avg_rcmf, 
+    '4.4.3.3' : v_j_avg_sw, 
+    '4.4.3.4' : v_j_avg_br, 
+    '4.4.3.5' : M_gj, 
+    '4.4.3.6' : p_ot, 
+    '4.4.3.7' : T_c, 
+    '4.4.3.8' : f_p, 
+    '4.4.3.9' : f_j_avg_smf, 
+}
+
+
+func_name_dict = {
+    '4.4.3.2' : 'v_j_avg_rcmf', 
+    '4.4.3.3' : 'v_j_avg_sw', 
+    '4.4.3.4' : 'v_j_avg_br', 
+    '4.4.3.5' : 'M_gj', 
+    '4.4.3.6' : 'p_ot', 
+    '4.4.3.7' : 'T_c', 
+    '4.4.3.8' : 'f_p', 
+    '4.4.3.9' : 'f_j_avg_smf', 
+}
+
+
+checklist_dict = {
+    'S1':  {'section': '17.4', 'CP': '17-9', 'IO': '17-8'},
+    'S1a': {'section': '17.4', 'CP': '17-9', 'IO': '17-8'},
+    'S2':  {'section': '17.5', 'CP': '17-10', 'IO': '17-11'},
+    'S2a': {'section': '17.5', 'CP': '17-10', 'IO': '17-11'},
+    'C1':  {'section': '17.11', 'CP': '17-22', 'IO': '17-23'},
+    'C2':  {'section': '17.12', 'CP': '17-24', 'IO': '17-25'},
+    'C2a': {'section': '17.12', 'CP': '17-24', 'IO': '17-25'},
+    'C3':  {'section': '17.13', 'CP': '17-26', 'IO': '17-27'},
+    }
+
+
+m2ft = lambda m: m / 0.3048
+ft2m = lambda ft: 0.3048 * ft
+sqin2sqm = lambda sqin: 0.00064516 * sqin
+sqm2sqin = lambda sqm: 1550.0031 * sqm
+kip2kN = lambda kip: 4.44822162 * kip
+kN2kip = lambda kN: 0.224808943 * kN
+psi2MPa = lambda psi: 0.0068947572932 * psi
+ksi2MPa = lambda ksi: 6.8947572932 * ksi
+MPa2psi = lambda MPa: 145.0377377 * MPa
+MPa2ksi = lambda MPa: 0.1450377377 * MPa
+
+
+def building_checks_SI(building_info, debug=False):
+    #  4.4.3.2
+    if ((V_j := building_info.get('storey X shear (kN)')) is not None) and \
+       ((A_c := building_info.get('total column area (m2)')) is not None) and \
+       ((n_c := building_info.get('frame column number')) is not None) and \
+       ((n_f := building_info.get('frame number')) is not None) and \
+       ((perf := building_info.get('performance')) is not None) and \
+       ((f_c := building_info.get('frame concrete cyl strength (MPa)')) is not None):
+        if debug: print('v_j_avg_rcmf', 
+            kN2kip(V_j), 
+            sqm2sqin(A_c), 
+            n_c, 
+            n_f, 
+            perf)
+        demand = ksi2MPa(v_j_avg_rcmf(
+            kN2kip(V_j), 
+            sqm2sqin(A_c), 
+            n_c, 
+            n_f, 
+            perf))
+        IO_capacity = psi2MPa(max(2 * MPa2psi(f_c)**0.5, 100.0))  # Table 17-23
+        print(f'4.4.3.2 Concrete Frame Shear Stress (v_j,avg) = {demand:4.2f} MPa')
+        print(f'Table 17-23 IO Concrete Shear Stress Capacity = {IO_capacity:4.2f} MPa')
+        print(f'D/C ratio = {100 * demand / IO_capacity:2.2f} %\n')
+        
+    #  4.4.3.6 Column Axial Stress due to Overturning
+    if ((V_j := building_info.get('storey X shear (kN)')) is not None) and \
+       ((h_n := building_info.get('building height (m)')) is not None) and \
+       ((L := building_info.get('frame length (m)')) is not None) and \
+       ((n_f := building_info.get('frame number')) is not None) and \
+       ((A_col := building_info.get('end column area (m2)')) is not None) and \
+       ((perf := building_info.get('performance')) is not None) and \
+       ((f_c := building_info.get('frame concrete cyl strength (MPa)')) is not None):
+        if debug: print('p_ot', 
+            kN2kip(V_j), 
+            m2ft(h_n), 
+            m2ft(L), 
+            n_f, 
+            sqm2sqin(A_col),
+            perf)
+        demand = ksi2MPa(p_ot(
+            kN2kip(V_j), 
+            m2ft(h_n), 
+            m2ft(L), 
+            n_f, 
+            sqm2sqin(A_col), 
+            perf))
+        IO_grav_capacity = psi2MPa(0.13 * MPa2psi(f_c))  # Table 17-23
+        IO_capacity = psi2MPa(0.3 * MPa2psi(f_c))  # Table 17-23
+        print(f'4.4.3.6 Concrete Col Axial OT Stress (p_ot) = {demand:4.2f} MPa')
+        print(f'Table 17-23 IO Concrete Axial OT Stress Capacity = {IO_capacity:4.2f} MPa')
+        print(f'D/C ratio = {100 * demand / IO_capacity:2.2f} %\n')
+
+    #  4.4.3.3 Shear Wall Stress
+    if debug: print('4.4.3.3 Shear Wall Stress')
+    if ((V_j := building_info.get('storey X shear (kN)')) is not None) and \
+       ((A_w := building_info.get('shear wall area (m2)')) is not None) and \
+       ((wtype := building_info.get('wall type')) is not None) and \
+       ((perf := building_info.get('performance')) is not None) and \
+       ((f_c := building_info.get('wall concrete cyl strength (MPa)')) is not None):
+        if debug: print('v_j_avg_sw', 
+            kN2kip(V_j), 
+            sqm2sqin(A_w), 
+            wtype, 
+            perf)
+        demand = ksi2MPa(v_j_avg_sw(
+            kN2kip(V_j), 
+            sqm2sqin(A_w), 
+            wtype, 
+            perf))
+        IO_capacity = psi2MPa(max(2 * MPa2psi(f_c)**0.5, 100.0))  # C2 / C2a Table 17-25
+        print(f'4.4.3.3 Concrete Shear Wall Stress (v_j_avg_sw) = {demand:4.2f} MPa')
+        print(f'Table 17-23 IO Concrete Shear Wall Stress Capacity = {IO_capacity:4.2f} MPa')
+        print(f'D/C ratio = {100 * demand / IO_capacity:2.2f} %\n')
 
 
 ####### Plotting #########################################################
@@ -1102,8 +1288,9 @@ try:
         return fig0
 
 except Exception as e:
-    def ASCE41_17_tripartite_plot(**kwargs):
+    def ASCE41_17_tripartite_plot(*args, e=e, **kwargs):
+        print('Loading ASCE41_17_tripartite_plot function failed')
         print(e)
 
-    def tripartite_plot_ranges(**kwargs):
+    def tripartite_plot_ranges(*args, e=e, **kwargs):
         print(e)

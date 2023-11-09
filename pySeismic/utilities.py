@@ -57,6 +57,18 @@ def scale_to_SI_units(units: str, default:Any=None) -> float:
     return scale
 
 
+def printt(table, h1 = 20, h2 = 12):
+    """
+    Printing tables where first column is text and the remainder are floats
+    h1 is the 
+    """
+    for line in table:
+        print('{:20s}'.format(line[0]), end = ' ')
+        [print('{:8.4f}'.format(item), end = ' ') for item in line[1:]]
+    return None
+
+
+
 def interp(x, x1, x2, y1, y2):
     """Returns an interpolated y-value for a line 
     between two points (x1, y1) and (x2, y2)
@@ -397,3 +409,10 @@ def print_storey_force_data(
     print(tit_f3.format('SUM ', '  ------', sum(storey_weights_kN), sum(storey_force_coeff_list), sum(storey_loads_kN), '     ------', '     ------'))
     
     return None
+
+
+def print_bar_areas_given_spacing(bar_spacing_mm, 
+                       bar_list = [16, 20, 25, 32, 36, 40]):
+    
+    [print(f'T{D}@200 = {1000 * D**2 / 4 / bar_spacing_mm}mm2/m') 
+        for D in bar_list]
