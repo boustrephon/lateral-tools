@@ -446,13 +446,15 @@ def get_S_qh(H: float, B:float, N_x, ksi_x=0.02):
         B: building width
     
     """
+    if H is None or B is None: print(f'H = {H}; B = {B}')
     L05p = B
     S_s = get_Ss(L05p)
     S_qh = 0.5 + ((S_s - 0.5)**2.0 + 0.25 / (B**0.5 * H * N_x**2 * ksi_x)) **0.5
     return S_qh
 
 
-def get_S_qz(Z: float, H: float, B:float, N_x=None, ksi_x=0.02):
+def get_S_qz(Z: float, H: float, B:float,
+             N_x:float=None, ksi_x:float=0.02, debug:bool=False)->float:
     """'Size and Dynamic' Factor for gust forces at top of buildings
     HK Wind 2019 Equation 5-1
     
@@ -464,6 +466,7 @@ def get_S_qz(Z: float, H: float, B:float, N_x=None, ksi_x=0.02):
                 with the along-wind direction
         ksi_x: ratio of critical damping in the relevant 
                 direction
+        debug: 
     
     Raises:
         ValueError: H exceeds height limit of 50m for simple method 
@@ -474,17 +477,20 @@ def get_S_qz(Z: float, H: float, B:float, N_x=None, ksi_x=0.02):
                 top of buildings (Eq 5-1)
     """
     if N_x is None and H <= 50:
-        # print('N_x is None and H <= 50')
-        S_qh =  get_S_q(H, B)
+        if debug: 
+            L_05p = {H/1.5 + 2*B}
+            print(f'get_S_qz: N_x is None and H = {H:4.2f} (<= 50m) and L_0.5p = {L_05p}')
+        S_qh =  get_S_q(H, B)  # independent of Z
         return S_qh
     elif N_x is None and H > 50:
-        # print('N_x is None and H > 50')
+        if debug: print(f'get_S_qz: N_x is None and H = {H:4.2f} (> 50m)')
         err_msg = f'H is {H} (> 50) but N_x is not specified'
         raise ValueError(err_msg)
     else:
         S_qh = get_S_qh(H, B, N_x, ksi_x)
         S_qz = S_qh - 1.2 * (S_qh - (10/H)**0.14) * (1 - Z / H)
-        # print(f'N_x is not None and H > 50, s_qz = {S_qz}')
+        if debug: print(f'get_S_qz: Z = {Z:4.4g}; N_x = {N_x:6.6g} (not None); ksi_x = {ksi_x:6.6g} ' + \
+            f'\n\tand H = {H:4.2f} (> 50m) and L_0.5p = {B}, s_qz = {S_qz:8.6g}')
         return S_qz
 
 
@@ -508,7 +514,8 @@ def get_W_z(Q_z: float, C_f:float, S_qz: float, B: float):
 
 def get_W_z_func(H_e: float, 
                  N_x: float = None, ksi_x: float = 0.01, 
-                 S_t: float = 1.0, S_theta: float = 0.85):
+                 S_t: float = 1.0, S_theta: float = 0.85,
+                 as_dict:bool = False):
     """_summary_
 
     Args:
@@ -536,11 +543,35 @@ def get_W_z_func(H_e: float,
         """
         Q_z = get_Q_oz(Ze) * S_t * S_theta
         C_f = get_C_f(H_e/D, B/D)
+        print(f'*** Ze = {Ze:4.4g}  N_x = {N_x:4.4g}  ksi_x = {ksi_x:4.4g}***')
+        S_qz = get_S_qz(Ze, H_e, B, N_x, ksi_x)
+        W_z = Q_z * C_f * S_qz * B        
+        return W_z
+    
+    def W_z_dict_func(Ze: float, B: float, D: float) -> float:
+        """Returns along-wind load per unit height when
+        provided with elevation, breadth and depth
+
+        Args:
+            Ze (float): effective elevation
+            B (float): building breadth at height Ze
+            D (float): building width at height Ze
+
+        Returns:
+            float: along-wind load per unit height
+        """
+        Q_z = get_Q_oz(Ze) * S_t * S_theta
+        C_f = get_C_f(H_e/D, B/D)
         # print(f'*** N_x = {N_x} ***')
         S_qz = get_S_qz(Ze, H_e, B, N_x, ksi_x)
         W_z = Q_z * C_f * S_qz * B
-        return W_z
-    return W_z_func
+        W_z_dict_func = {'W_z': W_z, 'Ze': Ze, 'B': B, 
+                         'Q_z': Q_z, 'C_f': C_f, 'S_qz': S_qz,
+                         'N_x': N_x, 'ksi_x': ksi_x, 
+                         'S_t': S_t, 'S_theta': S_theta,}
+        
+        return W_z_dict_func
+    return W_z_dict_func if as_dict else W_z_func
 
 
 def typical_damping_ratio(aspect_ratio:float, 
@@ -705,12 +736,18 @@ from pySeismic.utilities import *
 def full_wind_calcs(
         storey_heights, 
         storey_widths_x, storey_widths_y,
-        N_x = None, ksi_x = 0.005,  
+        N_x = None, N_y = None, ksi_x = 0.005, ksi_y = 0.005,  
         ascending = True,
         rigorous=True, print_data=False, debug=False,
         **kwargs):
     """Returns full set of calculations for HK Wind Code 2019"""
     S_e = 0.85
+    if print_data:
+        print('Initial settings')
+        fx = '4.4g' if isinstance(N_x, float) else ''
+        fy = '4.4g' if isinstance(N_y, float) else ''
+        print(f'-- N_x = {N_x:{fx}}; ksi_x = {ksi_x:4.4g}')
+        print(f'-- N_y = {N_y:{fy}}; ksi_y = {ksi_y:4.4g}')
     
     # This could be speeded up significantly by using numpy
     # print(f'Bottom storey height is {elevs[0]} m, 
@@ -744,11 +781,19 @@ def full_wind_calcs(
         by_ave = sum(storey_widths_y) / len(storey_widths_y)
         dd['storey_widths_y'] = storey_widths_y
     
-    if debug: print('Storey Heights: ', dd['storey_heights'])
+    if debug: print(f'Storey Widths (x) [dim {len(dd["storey_widths_x"])}]: ', 
+                    dd['storey_widths_x'])
+    if debug: print(f'Storey Widths (y) [dim {len(dd["storey_widths_y"])}]: ', 
+                    dd['storey_widths_y'])
+    if debug: print(f'bx_ave = {bx_ave}; by_ave = {by_ave} ')
+    if debug: print(f'Storey Heights [dim {len(dd["storey_heights"])}]: ', 
+                    dd['storey_heights'])
     dd['storey_elevs'] = gen_elevs(dd['storey_heights'])
-    if debug: print('Storey Elevations: ', dd['storey_elevs'])
+    if debug: print(f'Storey Elevations [dim {len(dd["storey_elevs"])}]: ', 
+                    dd['storey_elevs'])
     dd['trib_heights'] = gen_trib_heights(dd['storey_heights'])
-    if debug: print('Tributary heights: ', dd['trib_heights'])
+    if debug: print(f'Tributary heights [dim {len(dd["trib_heights"])}]: ', 
+                    dd['trib_heights'])
     dd['storey_mean_vels'] = [get_v_z(z) for z in dd['storey_elevs']] 
     dd['storey_pressures'] = [get_q_z(v) for v in dd['storey_mean_vels']]
     
@@ -768,16 +813,35 @@ def full_wind_calcs(
     dd['Q_z'] = [S_e * Q_z 
                                 for Q_z in dd['Q_oz']]    
     
+    damp_x = ksi_x  ;  damp_y = ksi_y
+    if N_x is None and H_e <= 100:
+        N_x = approx_fundamental_frequency(H_e)
+        damp_x = typical_damping_ratio(H_e / bx_ave, 'RC', 'loads')
+    if N_y is None and H_e <= 100:
+        N_y = approx_fundamental_frequency(H_e)
+        damp_y = typical_damping_ratio(H_e / by_ave, 'RC', 'loads')
+
+    if print_data: 
+        print(f'aspect = {H_e / bx_ave:4.4g}; N_x = {N_x:4.4g}; damp_x = {damp_x:4.4g}')
+        print(f'aspect = {H_e / by_ave:4.4g}; N_y = {N_y:4.4g}; damp_y = {damp_y:4.4g}')
+    
     S_t = kwargs.get('S_t', 1.0)
     S_theta = kwargs.get('S_theta', 0.85)
-    get_W_z = get_W_z_func(H_e, N_x, ksi_x, S_t, S_theta)
+    if print_data:
+        dd['S_qxz'] = [get_S_qz(Z, H_e, B,
+                N_x, ksi_x, debug=debug) for Z, B in zip(dd['storey_elevs'], dd['storey_widths_x'])]
+        dd['S_qyz'] = [get_S_qz(Z, H_e, B,
+                N_y, ksi_y, debug=debug) for Z, B in zip(dd['storey_elevs'], dd['storey_widths_y'])]
+        
+    get_W_z_x = get_W_z_func(H_e, N_x, damp_x, S_t, S_theta)
+    get_W_z_y = get_W_z_func(H_e, N_y, damp_y, S_t, S_theta)
     
-    dd['W_x'] = [get_W_z(z, b, d) 
+    dd['W_x'] = [get_W_z_x(z, b, d) 
                  for z, b, d in zip(dd['storey_elevs'],
                                     dd['storey_widths_y'], 
                                     dd['storey_widths_x'],
                                     )]
-    dd['W_y'] = [get_W_z(z, b, d) 
+    dd['W_y'] = [get_W_z_y(z, b, d) 
                  for z, b, d in zip(dd['storey_elevs'],
                                     dd['storey_widths_x'], 
                                     dd['storey_widths_y'],
@@ -848,8 +912,8 @@ def full_wind_calcs(
     ## PRINT RESULTS if print_data is True #######
     if print_data:
         print('print_data is True\n')
-        S_qx = get_S_qz(H_e, by_ave, N_x, ksi_x)
-        S_qy = get_S_qz(H_e, bx_ave, N_x, ksi_x)
+        S_qx = get_S_qz(H_e, H_e, by_ave, N_x, ksi_x, debug=debug)
+        S_qy = get_S_qz(H_e, H_e, bx_ave, N_x, ksi_x, debug=debug)
         print(f'S_e : {S_e:4.3f}     S_qx : {S_qx:4.3f}     S_qy : {S_qy:4.3f}\n')
 
         # print(f'C_hx : {C_hx:4.3f}     C_hy : {C_hy:4.3f}\n')
@@ -867,8 +931,8 @@ def full_wind_calcs(
         keys = ['storey_heights', 'storey_elevs', 'Q_oz', 'Q_z', 
                         'storey_widths_x', 'storey_widths_y', 'C_fx', 'C_fy']
         if debug: print([len(dd[k]) for k in keys])
-        print('Height | Elev        | Q_oz        | Q_z            ' + \
-                '| B_x         | B_y            | C_fx                | C_fy     ')
+        print('Height | Elev    | Q_oz     | Q_z       ' + \
+                '| B_x       | B_y          | C_fx         | C_fy     ')
         [print(f'{h:4.2f} m | {z:5.5g} m | {Q_oz:4.2f} kPa| {Q_z:4.2f} kPa | ' + \
                      f'{bx:5.5g} m | {by:5.5g} m    | {C_fx:5.5f} kPa | {C_fy:5.5f} kPa') \
                     for h, z, Q_oz, Q_z, bx, by, C_fx, C_fy 
@@ -888,16 +952,18 @@ def full_wind_calcs(
         #                        dd['storey_forces_y'])]
         # print()
 
-        keys = ['storey_elevs', 'trib_heights', 
+        keys = ['storey_elevs', 'trib_heights', 'S_qxz', 'S_qyz',
                         'W_x', 'W_y', 'storey_forces_x', 'storey_forces_y']
         if debug: print([len(dd[k]) for k in keys])
-        print('Elev.        | Trib. H| Wx                 | Wy                 | ' + \
+        print('Elev.        | Trib. H| S_q,z            | Wx        | Wy        | ' + \
             'Forces (x & y)')
         [print(f'{z:6.2f} m | {h:4.2f} m    | ' + \
-                     f'{wx:6.2f} kN/m | {wy:4.2f} kN/m | ' + \
+                     f'{sqxz:6.4g} | {sqyz:6.4g} | ' + \
+                     f'{wx:6.6g} kN/m | {wy:6.6g} kN/m | ' + \
                      f'{x:7,.0f} kN | {y:7,.0f} kN') \
-                for z, h, wx, wy, x, y 
+                for z, h, sqxz, sqyz, wx, wy, x, y 
                 in zip(dd['storey_elevs'], dd['trib_heights'], 
+                             dd['S_qxz'], dd['S_qyz'],
                              dd['W_x'], dd['W_y'], 
                              dd['storey_forces_x'], dd['storey_forces_y'])]
         print()
