@@ -203,6 +203,31 @@ def S_calc(S_s_475, S_1_475, T):
 # storey_force_coeffs, storey_force_distribution, storey_forces, storey_shear_moment, shear_coords
 # storey_force_coeffs, storey_force_distribution, storey_shear_moment, shear_coords
 
+def storey_elevations(storey_height_list: list[float], 
+                      ascending:bool=True, 
+                      rounded = False,
+                      rounding_value = 10) -> list[float]:
+    """list of storey elevations from list of storey heights
+
+    Args:
+        storey_height_list (list[float]): ordered list of storey heights
+        ascending (bool, optional): True if list is ascending 
+        rounded (bool, optional): True if values should be rounded to clean numbers
+        rounding_value (int, optional): number of decimal points to round to. Defaults to 10.
+    Returns:
+        list[float]: list of storey elevations (m)
+    """
+    if ascending is False: storey_height_list = storey_height_list[::-1]
+    storey_height_list = storey_height_list if storey_height_list[0] == 0 else [0] + storey_height_list
+    elev_list = list(accumulate(storey_height_list))
+    rounding_value = 10
+    if rounded:
+        return [round(elev, rounding_value) for elev in elev_list] \
+            if ascending else [round(elev, rounding_value) for elev in elev_list[::-1]]
+    else:
+        return elev_list if ascending else elev_list[::-1]
+
+
 def storey_force_coeffs(elev_list, weight_list, k = 1.0):
     """
         Inputs:
@@ -248,20 +273,43 @@ def storey_shear_moment(force_list, height_list, ascending = True, debug=False):
     return shear_list_desc[::-1] if ascending else shear_list_desc, mom_list_desc[::-1] if ascending else mom_list_desc
 
 
-def shear_coords(elevs, shears, base_level = 0):
+def shear_coords(elevs: list[float], shears:list[float], 
+                 base_level:float = 0) -> list[list[float]]:
     """Returns a list of (z,V) tuples for plotting storey shear diagrams
     Inputs are lists of elevations and shear values.
-    The list of elevations should not include the base level
-    NB. Interleaving is required because of the steps in the shear diagram"""
-    # l_1 = list(zip(elevs[1:],shears[1:]))
-    # l_2 = list(zip(elevs,shears[1:] + [0.0]))
-    l_1 = list(zip(elevs,shears))
-    l_2 = list(zip(list(elevs)[1:] + [base_level], shears))
+    If the list of elevations includes the base level,
+    the first item of each list will be removed
+    NB. Interleaving is required because of the steps in the shear diagram
+
+    Args:
+        elevs (list[float]): storey elevations
+        shears (list[float]): shear values at those elevations
+        base_level (float, optional): Elevation at base. Defaults to 0.
+
+    Raises:
+        ValueError: Length mismatch between elevs and shears
+
+    Returns:
+        list[list[float]]: List of elevations and shears
+    """
+    if elevs[0] == base_level:
+        elevs = elevs[1:]
+        if len(shears) - len(elevs) == 1:
+            shears = shears[1:]
+        elif len(shears) == len(elevs):
+            pass
+        else:
+            err_msg = f'Length mismatch between elevs {len(elevs)} and shears {len(shears)}'
+            err_msg += f'elevs = {elevs}\nshears = {shears}'
+            raise ValueError(err_msg)
+    z_old = base_level
     out = []
-    while l_2:
-        out.append(l_2.pop()) if l_2 else None
-        out.append(l_1.pop()) if l_1 else None
-    return out[::-1]
+    for z, V in zip(elevs, shears):
+        out.append([z_old, V])
+        out.append([z, V])
+        z_old = z
+    out.append([elevs[-1], 0])
+    return out
 
 
 # =======================================
@@ -416,3 +464,5 @@ def print_bar_areas_given_spacing(bar_spacing_mm,
     
     [print(f'T{D}@200 = {1000 * D**2 / 4 / bar_spacing_mm}mm2/m') 
         for D in bar_list]
+    
+
