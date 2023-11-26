@@ -847,78 +847,81 @@ MPa2ksi = lambda MPa: 0.1450377377 * MPa
 
 def building_checks_SI(building_info, debug=False):
     #  4.4.3.2
-    if ((V_j := building_info.get('storey X shear (kN)')) is not None) and \
-       ((A_c := building_info.get('total column area (m2)')) is not None) and \
-       ((n_c := building_info.get('frame column number')) is not None) and \
-       ((n_f := building_info.get('frame number')) is not None) and \
-       ((perf := building_info.get('performance')) is not None) and \
-       ((f_c := building_info.get('frame concrete cyl strength (MPa)')) is not None):
-        if debug: print('v_j_avg_rcmf', 
-            kN2kip(V_j), 
-            sqm2sqin(A_c), 
-            n_c, 
-            n_f, 
-            perf)
-        demand = ksi2MPa(v_j_avg_rcmf(
-            kN2kip(V_j), 
-            sqm2sqin(A_c), 
-            n_c, 
-            n_f, 
-            perf))
-        IO_capacity = psi2MPa(max(2 * MPa2psi(f_c)**0.5, 100.0))  # Table 17-23
-        print(f'4.4.3.2 Concrete Frame Shear Stress (v_j,avg) = {demand:4.2f} MPa')
-        print(f'Table 17-23 IO Concrete Shear Stress Capacity = {IO_capacity:4.2f} MPa')
-        print(f'D/C ratio = {100 * demand / IO_capacity:2.2f} %\n')
+    for dirn in ('X', 'Y'):
+        if ((V_j := building_info.get(f'storey {dirn} shear (kN)')) is not None) and \
+        ((A_c := building_info.get('total column area (m2)')) is not None) and \
+        ((n_c := building_info.get(f'frame column number ({dirn})')) is not None) and \
+        ((n_f := building_info.get(f'frame number ({dirn})')) is not None) and \
+        ((perf := building_info.get('performance')) is not None) and \
+        ((f_c := building_info.get('frame concrete cyl strength (MPa)')) is not None):
+            if debug: print('v_j_avg_rcmf', 
+                kN2kip(V_j), 
+                sqm2sqin(A_c), 
+                n_c, 
+                n_f, 
+                perf)
+            demand = ksi2MPa(v_j_avg_rcmf(
+                abs(kN2kip(V_j)), 
+                sqm2sqin(A_c), 
+                n_c, 
+                n_f, 
+                perf))
+            IO_capacity = psi2MPa(max(2 * MPa2psi(f_c)**0.5, 100.0))  # Table 17-23
+            print(f'4.4.3.2 Concrete Frame Shear Stress (v_j,avg) = {demand:4.2f} MPa')
+            print(f'Table 17-23 IO Concrete Shear Stress Capacity = {IO_capacity:4.2f} MPa')
+            print(f'D/C ratio ({dirn}) = {100 * demand / IO_capacity:2.2f} %\n')
         
     #  4.4.3.6 Column Axial Stress due to Overturning
-    if ((V_j := building_info.get('storey X shear (kN)')) is not None) and \
-       ((h_n := building_info.get('building height (m)')) is not None) and \
-       ((L := building_info.get('frame length (m)')) is not None) and \
-       ((n_f := building_info.get('frame number')) is not None) and \
-       ((A_col := building_info.get('end column area (m2)')) is not None) and \
-       ((perf := building_info.get('performance')) is not None) and \
-       ((f_c := building_info.get('frame concrete cyl strength (MPa)')) is not None):
-        if debug: print('p_ot', 
-            kN2kip(V_j), 
-            m2ft(h_n), 
-            m2ft(L), 
-            n_f, 
-            sqm2sqin(A_col),
-            perf)
-        demand = ksi2MPa(p_ot(
-            kN2kip(V_j), 
-            m2ft(h_n), 
-            m2ft(L), 
-            n_f, 
-            sqm2sqin(A_col), 
-            perf))
-        IO_grav_capacity = psi2MPa(0.13 * MPa2psi(f_c))  # Table 17-23
-        IO_capacity = psi2MPa(0.3 * MPa2psi(f_c))  # Table 17-23
-        print(f'4.4.3.6 Concrete Col Axial OT Stress (p_ot) = {demand:4.2f} MPa')
-        print(f'Table 17-23 IO Concrete Axial OT Stress Capacity = {IO_capacity:4.2f} MPa')
-        print(f'D/C ratio = {100 * demand / IO_capacity:2.2f} %\n')
+    for dirn in ('X', 'Y'):
+        if ((V_j := building_info.get(f'storey {dirn} shear (kN)')) is not None) and \
+        ((h_n := building_info.get('building height (m)')) is not None) and \
+        ((L := building_info.get(f'frame length, {dirn} (m)')) is not None) and \
+        ((n_f := building_info.get(f'frame number ({dirn})')) is not None) and \
+        ((A_col := building_info.get(f'end column area, {dirn} (m2)')) is not None) and \
+        ((perf := building_info.get('performance')) is not None) and \
+        ((f_c := building_info.get('frame concrete cyl strength (MPa)')) is not None):
+            if debug: print('p_ot', 
+                kN2kip(V_j), 
+                m2ft(h_n), 
+                m2ft(L), 
+                n_f, 
+                sqm2sqin(A_col),
+                perf)
+            demand = ksi2MPa(p_ot(
+                abs(kN2kip(V_j)), 
+                m2ft(h_n), 
+                m2ft(L), 
+                n_f, 
+                sqm2sqin(A_col), 
+                perf))
+            IO_grav_capacity = psi2MPa(0.13 * MPa2psi(f_c))  # Table 17-23
+            IO_capacity = psi2MPa(0.3 * MPa2psi(f_c))  # Table 17-23
+            print(f'4.4.3.6 Concrete Col Axial OT Stress (p_ot) = {demand:4.2f} MPa')
+            print(f'Table 17-23 IO Concrete Axial OT Stress Capacity = {IO_capacity:4.2f} MPa')
+            print(f'D/C ratio ({dirn}) = {100 * demand / IO_capacity:2.2f} %\n')
 
     #  4.4.3.3 Shear Wall Stress
     if debug: print('4.4.3.3 Shear Wall Stress')
-    if ((V_j := building_info.get('storey X shear (kN)')) is not None) and \
-       ((A_w := building_info.get('shear wall area (m2)')) is not None) and \
-       ((wtype := building_info.get('wall type')) is not None) and \
-       ((perf := building_info.get('performance')) is not None) and \
-       ((f_c := building_info.get('wall concrete cyl strength (MPa)')) is not None):
-        if debug: print('v_j_avg_sw', 
-            kN2kip(V_j), 
-            sqm2sqin(A_w), 
-            wtype, 
-            perf)
-        demand = ksi2MPa(v_j_avg_sw(
-            kN2kip(V_j), 
-            sqm2sqin(A_w), 
-            wtype, 
-            perf))
-        IO_capacity = psi2MPa(max(2 * MPa2psi(f_c)**0.5, 100.0))  # C2 / C2a Table 17-25
-        print(f'4.4.3.3 Concrete Shear Wall Stress (v_j_avg_sw) = {demand:4.2f} MPa')
-        print(f'Table 17-23 IO Concrete Shear Wall Stress Capacity = {IO_capacity:4.2f} MPa')
-        print(f'D/C ratio = {100 * demand / IO_capacity:2.2f} %\n')
+    for dirn in ('X', 'Y'):
+        if ((V_j := building_info.get('storey {dirn} shear (kN)')) is not None) and \
+        ((A_w := building_info.get('shear wall area, {dirn} (m2)')) is not None) and \
+        ((wtype := building_info.get('wall type, {dirn}')) is not None) and \
+        ((perf := building_info.get('performance')) is not None) and \
+        ((f_c := building_info.get('wall concrete cyl strength (MPa)')) is not None):
+            if debug: print('v_j_avg_sw', 
+                kN2kip(V_j), 
+                sqm2sqin(A_w), 
+                wtype, 
+                perf)
+            demand = ksi2MPa(v_j_avg_sw(
+                kN2kip(V_j), 
+                sqm2sqin(A_w), 
+                wtype, 
+                perf))
+            IO_capacity = psi2MPa(max(2 * MPa2psi(f_c)**0.5, 100.0))  # C2 / C2a Table 17-25
+            print(f'4.4.3.3 Concrete Shear Wall Stress (v_j_avg_sw) = {demand:4.2f} MPa')
+            print(f'Table 17-23 IO Concrete Shear Wall Stress Capacity = {IO_capacity:4.2f} MPa')
+            print(f'D/C ratio ({dirn}) = {100 * demand / IO_capacity:2.2f} %\n')
 
 
 ####### Plotting #########################################################
