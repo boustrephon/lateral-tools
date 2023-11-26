@@ -515,7 +515,7 @@ def get_W_z(Q_z: float, C_f:float, S_qz: float, B: float):
 def get_W_z_func(H_e: float, 
                  N_x: float = None, ksi_x: float = 0.01, 
                  S_t: float = 1.0, S_theta: float = 0.85,
-                 as_dict:bool = False):
+                 as_dict:bool = False, debug:bool=False):
     """_summary_
 
     Args:
@@ -524,6 +524,8 @@ def get_W_z_func(H_e: float,
         ksi_x (float): _description_
         S_t (float): _description_
         S_theta (float): _description_
+        as_dict (bool):  False, 
+        debug (bool): False
 
     Returns:
         function[float]: a function that returns the pressure 
@@ -543,7 +545,7 @@ def get_W_z_func(H_e: float,
         """
         Q_z = get_Q_oz(Ze) * S_t * S_theta
         C_f = get_C_f(H_e/D, B/D)
-        print(f'*** Ze = {Ze:4.4g}  N_x = {N_x:4.4g}  ksi_x = {ksi_x:4.4g}***')
+        if debug: print(f'*** Ze = {Ze:4.4g}  N_x = {N_x:4.4g}  ksi_x = {ksi_x:4.4g}***')
         S_qz = get_S_qz(Ze, H_e, B, N_x, ksi_x)
         W_z = Q_z * C_f * S_qz * B        
         return W_z
@@ -562,7 +564,7 @@ def get_W_z_func(H_e: float,
         """
         Q_z = get_Q_oz(Ze) * S_t * S_theta
         C_f = get_C_f(H_e/D, B/D)
-        # print(f'*** N_x = {N_x} ***')
+        if debug: print(f'*** Ze = {Ze:4.4g}  N_x = {N_x:4.4g}  ksi_x = {ksi_x:4.4g}***')
         S_qz = get_S_qz(Ze, H_e, B, N_x, ksi_x)
         W_z = Q_z * C_f * S_qz * B
         W_z_dict_func = {'W_z': W_z, 'Ze': Ze, 'B': B, 
@@ -746,8 +748,9 @@ def full_wind_calcs(
         print('Initial settings')
         fx = '4.4g' if isinstance(N_x, float) else ''
         fy = '4.4g' if isinstance(N_y, float) else ''
-        print(f'-- N_x = {N_x:{fx}}; ksi_x = {ksi_x:4.4g}')
-        print(f'-- N_y = {N_y:{fy}}; ksi_y = {ksi_y:4.4g}')
+        if debug:
+            print(f'-- N_x = {N_x:{fx}}; ksi_x = {ksi_x:4.4g}')
+            print(f'-- N_y = {N_y:{fy}}; ksi_y = {ksi_y:4.4g}')
     
     # This could be speeded up significantly by using numpy
     # print(f'Bottom storey height is {elevs[0]} m, 
@@ -766,8 +769,9 @@ def full_wind_calcs(
         dd['storey_widths_x'] = [bx_ave for _ in storey_heights]
     else:
         if len(storey_widths_x) != len(storey_heights):
-            raise ValueError('Number of storey heights ' + \
-                'does not match number of storey widths (x)')
+            sw_x, sh = len(storey_widths_x), len(storey_heights)
+            raise ValueError(f'Number of storey heights, {sh}, ' + \
+                f'does not match number of storey widths (x), {sw_x}')
         bx_ave = sum(storey_widths_x) / len(storey_widths_x)
         dd['storey_widths_x'] = storey_widths_x
 
