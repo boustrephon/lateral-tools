@@ -41,13 +41,23 @@ def as_numeric(txt:str, default:Any=None) -> Union[int, float, str]:
     >>> as_numeric('3.14mm', 0)
     0
     """
+    scale=1
+    if txt.rstrip().endswith('%'):
+        txt = txt.rstrip().replace('%', '')
+        scale=0.01
     try:
-        return int(txt)
-    except:
+        return scale*int(txt)
+    except ValueError:
         try:
-            return float(txt)
-        except:
-            return default
+            return scale*float(txt)
+        except ValueError:
+            if default is None:
+                if scale == 1:
+                    return txt
+                else:
+                    return txt + '%'
+            else:
+                return default
 
 
 def as_float(txt:str, default:Any=None) -> Union[float, str]:

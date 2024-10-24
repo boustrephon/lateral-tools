@@ -4,7 +4,13 @@
 # from math import pi, sin, cos, tan, acos, asin, atan, atan2, log, log10
 from math import exp, log
 from itertools import accumulate, chain
-from typing import Any
+from typing import Any, Union
+
+from os.path import exists, abspath
+from itertools import accumulate
+from csv import reader, excel_tab
+from tkinter import filedialog
+from tkinter import *
 
 
 # ======================================
@@ -17,8 +23,46 @@ from typing import Any
 def as_float(x):
     try:
         return float(x)        
-    except:
+    except:  # noqa: E722
         return x
+
+
+def as_numeric(txt:str, default:Any=None) -> Union[int, float, str]:
+    """Converts string to number (int or float), if possible
+        
+    Args:
+        txt: text for conversion to integer or float
+        default: default value if conversion fails
+    
+    Returns:
+        text as int, float or default value
+
+    >>> as_numeric('6')
+    6
+    >>> as_numeric('3.14')
+    3.14
+    >>> as_numeric('3.14mm')
+    None
+    >>> as_numeric('3.14mm', 0)
+    0
+    """
+    scale=1
+    if txt.rstrip().endswith('%'):
+        txt = txt.rstrip().replace('%', '')
+        scale=0.01
+    try:
+        return scale*int(txt)
+    except ValueError:
+        try:
+            return scale*float(txt)
+        except ValueError:
+            if default is None:
+                if scale == 1:
+                    return txt
+                else:
+                    return txt + '%'
+            else:
+                return default
 
 
 units_SI_scaling_dict = {
@@ -421,11 +465,11 @@ def shear_interp(x_vals: list[float], xV_pairs: list[tuple[float, float]], tol: 
 # ======= Printing Functions ============
 # =======================================
 
-from os.path import exists, abspath
-from itertools import accumulate
-from csv import reader, excel_tab
-from tkinter import filedialog
-from tkinter import *
+# from os.path import exists, abspath
+# from itertools import accumulate
+# from csv import reader, excel_tab
+# from tkinter import filedialog
+# from tkinter import *
 
 
 def import_storey_data(file_path, delimiter=','):
@@ -445,7 +489,7 @@ def import_storey_data(file_path, delimiter=','):
         root.destroy()
 
     print(f'Building data file path is "{file_path}"')
-    print(f'File EXISTS' if exists(file_path) else f'File NOT found')
+    print('File EXISTS' if exists(file_path) else 'File NOT found')
 
     with open(file_path, newline='') as csvfile:
         csv_reader = reader(csvfile, dialect = 'excel', delimiter=delimiter)
