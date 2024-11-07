@@ -6,11 +6,9 @@ from math import exp, log
 from itertools import accumulate, chain
 from typing import Any, Union
 
-from os.path import exists, abspath
-from itertools import accumulate
-from csv import reader, excel_tab
-from tkinter import filedialog
-from tkinter import *
+from os.path import exists #, abspath
+from csv import reader #, excel_tab
+from tkinter import filedialog, Tk
 
 
 # ======================================
@@ -148,7 +146,8 @@ def interp(x:float, x1: float, x2: float, y1: float, y2: float) -> float:
         return y1 + (x - x1) / (x2 - x1) * (y2 - y1)
 
 
-def list_interp(val: float, list_1: list[float], list_2: list[float], extrapolate:bool=False)-> float:
+def list_interp(val: float, list_1: list[float], list_2: list[float], 
+                extend:bool = False, extrapolate:bool=False)-> float:
     """Returns interpolated values from list_2 based 
     on values related to list_1, returning the bookends 
     if the provided values are outside the range of 
@@ -181,14 +180,18 @@ def list_interp(val: float, list_1: list[float], list_2: list[float], extrapolat
         return list_2[i_list[0]]
     elif val <= list_1[0]:
         # if lookup value is lower than all in list_1
-        if extrapolate:
+        if not extend:
+            return 0
+        elif extrapolate:
             vals = list_1[:2] + list_2[:2]
             return interp(val, *vals)
         else:
             return list_2[0]
     elif val >= list_1[-1]:
         # if lookup value is higher than all in list_1
-        if extrapolate:
+        if not extend:
+            return 0
+        elif extrapolate:
             vals = list_1[-2:] + list_2[-2:]
             return interp(val, *vals)
         else:
@@ -306,7 +309,8 @@ def storey_elevations(storey_height_list: list[float],
     Returns:
         list[float]: list of storey elevations (m)
     """
-    if ascending is False: storey_height_list = storey_height_list[::-1]
+    if ascending is False:
+        storey_height_list = storey_height_list[::-1]
     storey_height_list = storey_height_list if storey_height_list[0] == 0 else [0] + storey_height_list
     elev_list = list(accumulate(storey_height_list))
     rounding_value = 10
@@ -356,7 +360,8 @@ def storey_shear_moment(force_list, height_list, ascending = True, debug=False):
     shear_list_desc = list(accumulate(force_list[::-1] if ascending else force_list))
     v_h_desc = [v * h for v, h in zip(shear_list_desc, height_list[::-1] if ascending else height_list)]
     mom_list_desc = list(accumulate(v_h_desc))
-    if debug: print(mom_list_desc[-1], '=?', sum(f * z for f, z in zip(
+    if debug:
+        print(mom_list_desc[-1], '=?', sum(f * z for f, z in zip(
             accumulate(height_list) if ascending else accumulate(height_list[::-1]), 
             force_list if ascending else force_list[::-1])))
     return shear_list_desc[::-1] if ascending else shear_list_desc, mom_list_desc[::-1] if ascending else mom_list_desc
