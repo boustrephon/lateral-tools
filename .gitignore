@@ -127,3 +127,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+.xlsx
+notebooks/RSAEEP_III_1.2.png
+notebooks/RSAEEP_III_1.2.SVG
+notebooks/wind_line_loads.xlsx
