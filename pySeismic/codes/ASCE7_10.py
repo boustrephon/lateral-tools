@@ -19,7 +19,7 @@ Previous editions are:
 * ASCE 7-88
 """
 
-from math import pi, sin, cos, tan, acos, asin, atan, atan2, log, log10
+# from math import pi, sin, cos, tan, acos, asin, atan, atan2, log, log10
 # from itertools import accumulate
 
 from pySeismic.utilities import list_interp
@@ -161,8 +161,10 @@ def seismic_design_category_get(S_s, S_1, site_class, risk_category, debug=False
     F_a, F_v = site_coeffs(site_class, S_s, S_1)
     S_DS = 2 / 3 * F_a * S_s
     S_D1 = 2 / 3 * F_v * S_1
-    if debug: print('F_a, F_v:', F_a, F_v)
-    if debug: print('S_DS, S_D1:', S_DS, S_D1)
+    if debug:
+        print('F_a, F_v:', F_a, F_v)
+    if debug:
+        print('S_DS, S_D1:', S_DS, S_D1)
     
     accel_limits_S = [0.0, 0.167, 0.33, 0.50]
     accel_limits_1 = [0.0, 0.067, 0.133, 0.20]
@@ -197,9 +199,9 @@ def seismic_design_category_get(S_s, S_1, site_class, risk_category, debug=False
 #### Ch 12 Seismic Design Requirements for Building Structures ####
 
 
-def C_u_interp_func(S_D1): 
-    """Coefficient for Upper Limit on Calculated Period (Table 12.8-1)"""
-    return list_interp(S_D1, [0.1, 0.15, 0.2, 0.3, 0.4], [1.7, 1.6, 1.5, 1.4, 1.4])
+# def C_u_interp_func(S_D1): 
+#     """Coefficient for Upper Limit on Calculated Period (Table 12.8-1)"""
+#     return list_interp(S_D1, [0.1, 0.15, 0.2, 0.3, 0.4], [1.7, 1.6, 1.5, 1.4, 1.4])
 
 
 # Empirical period factors (returns a tuple of imperial and metric)
