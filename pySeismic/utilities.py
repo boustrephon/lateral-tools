@@ -18,6 +18,24 @@ from tkinter import filedialog, Tk
 # Functions:
 # printt, interp, list_interp, 
 
+def print_dir(pkg, n=4):
+    """Print all non-private members of a package, n items per line.
+
+    Useful for quickly seeing what members are in a package, without having to
+    manually open the package and look.
+
+    Parameters
+    ----------
+    pkg : package
+        The package to print members of.
+    n : int, optional
+        Number of items per line. Default is 4.
+    """
+    
+    [print(x) if i % n == (n - 1) else print(x, end=' | ') 
+     for i, x in enumerate(dir(pkg)) if not x.startswith('__')]
+
+
 def as_float(x):
     try:
         return float(x)        
