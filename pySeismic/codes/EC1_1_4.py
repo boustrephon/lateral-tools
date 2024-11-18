@@ -20,8 +20,8 @@ def get_c_f0(d, b):
     """_summary_
 
     Args:
-        d (float): breadth
-        b (float): depth
+        d (float): width
+        b (float): vertical dimension
 
     Returns:
         float: _description_
