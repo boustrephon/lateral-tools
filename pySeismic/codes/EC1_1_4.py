@@ -149,5 +149,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
     doctest.testmod()
+    print('== Doctest Complete ==')
+    main()
+    

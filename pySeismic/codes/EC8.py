@@ -79,8 +79,9 @@ Behaviour factors (q) are defined for different structural types:
 - base isolation: 10.7
 
 """
-
+import doctest
 from typing import Union, Dict, List, Tuple
+from math import pi
 
 
 def version():
@@ -260,28 +261,33 @@ def get_q(
         q: behaviour factor
     """
     prop_dict = concrete_structural_system_dict.get(structural_system,{})
-    if debug: print(prop_dict.get('Description'))
+    if debug:
+        print(prop_dict.get('Description'))
     if alpha_ratio is None:
         alpha_ratio = prop_dict.get('alpha_ratio')
         if plan_regular is False:
             alpha_ratio = 0.5 * (1 + alpha_ratio)
     ar_limit = min(1.5, alpha_ratio )
 
-    if debug: print(f'- alpha_ratio={alpha_ratio}, ar_limit={ar_limit}, ', end='')
+    if debug:
+        print(f'- alpha_ratio={alpha_ratio}, ar_limit={ar_limit}, ', end='')
     
     if ductility_class == 'DCH':
         alphaH = prop_dict.get('alphaH')
         q0_basic = prop_dict.get('DCH', 1.5)
-        if debug: print(f'alphaH={alphaH}, q0_basic={q0_basic}, ', end='')
+        if debug:
+            print(f'alphaH={alphaH}, q0_basic={q0_basic}, ', end='')
         q0 = q0_basic * (ar_limit if alphaH else 1.0)
     elif ductility_class == 'DCM':
         alphaM = prop_dict.get('alphaM')
         q0_basic = prop_dict.get('DCM', 1.5)
-        if debug: print(f'alphaM={alphaM}, q0_basic={q0_basic}, ', end='')
+        if debug:
+            print(f'alphaM={alphaM}, q0_basic={q0_basic}, ', end='')
         q0 = q0_basic * (ar_limit if alphaM else 1.0)
     else:
         q0_basic = prop_dict.get('DCL', 1.5)
-        if debug: print(f'q0_basic={q0_basic}, ', end='')
+        if debug:
+            print(f'q0_basic={q0_basic}, ', end='')
         q0 = q0_basic
     
     k_w = prop_dict.get('k_w')
@@ -289,15 +295,14 @@ def get_q(
         k_w = max(0.5, min((1 + alpha_0)/3, 1.0))
     
     regularity_factor = 1.0 if (elev_regular and plan_regular) else 0.8
-    if debug: print(f'regularity_factor={regularity_factor}, ', end='')
+    if debug:
+        print(f'regularity_factor={regularity_factor}, ', end='')
     
     q = max(1.5, q0 * k_w * regularity_factor)
-    if debug: print(f'q={q:4.3f}')
+    if debug:
+        print(f'q={q:4.3f}')
     
     return q
-
-
-from math import pi
 
 
 importance_classes = ['I', 'II', 'III', 'IV']
@@ -519,7 +524,16 @@ def S_e(T:Union[float,Tuple[float],List[float]],
             containing 'S', 'T_B', 'T_C', 'T_D' values for all soil types (source type 2)
     
     Returns:
-        T_s_list: tuple of tuple of periods, T & tuple of spectral accelerations (g) 
+        T_s_list: tuple of tuple of periods, T & tuple of spectral accelerations (g)
+        
+    Example:
+        >>> T_list = (0.2, 1.8, 3.5)
+        >>> S_e_list = S_e(T_list, a_gR=0.12, site_class='C', source_type=1, importance=1.0, damp=0.05)
+        >>> [tuple([round(a,3) for a in b]) for b in S_e_list]
+        [(0.2, 1.8, 3.5), (0.345, 0.115, 0.034)]
+        >>> S_e_1 = S_e(T=1.8, a_gR=0.12, site_class='C', source_type=1, importance=1.0, damp=0.05)
+        >>> round(S_e_1, 3)
+        0.115
     """
     if source_type == 1:
         p_dict = table_3_2_type1_dict.get(site_class, {})
@@ -527,7 +541,7 @@ def S_e(T:Union[float,Tuple[float],List[float]],
         p_dict = table_3_3_type2_dict.get(site_class, {})
     else:
         return {}
-    if p_dict is {}:
+    if p_dict == {}:
         return {}
     
     S, T_B, T_C, T_D = [p_dict[p] for p in ('S', 'T_B', 'T_C', 'T_D', )]
@@ -638,7 +652,7 @@ def S_d(T:Union[float, List[float], Tuple[float]],
         p_dict = table_3_3_type2_dict.get(site_class, {})
     else:
         return {}
-    if p_dict is {}:
+    if p_dict == {}:
         return {}
     
     S, T_B, T_C, T_D = [p_dict[p] for p in ('S', 'T_B', 'T_C', 'T_D', )]
@@ -814,6 +828,10 @@ def get_d_g(
     
     Returns:
         d_g: ground displacement (m)
+    
+    Example:
+        >>> get_d_g(a_gR=0.12, site_class='C', source_type=1, importance=1.0)
+        0.00414
     """
     if source_type == 1:
         p_dict = table_3_2_type1_dict.get(site_class, {})
@@ -821,7 +839,7 @@ def get_d_g(
         p_dict = table_3_3_type2_dict.get(site_class, {})
     else:
         return {}
-    if p_dict is {}:
+    if p_dict == {}:
         return {}
     
     S, _, T_C, T_D = [p_dict[p] for p in ('S', 'T_B', 'T_C', 'T_D', )]
@@ -880,7 +898,7 @@ try:
         x_limits = kwargs.pop('x_limits', (0, None))
         y_limits = kwargs.pop('y_limits', (0, None))
         plot_title = kwargs.pop('plot_title', f'EC8 Site Class {site_class}')
-        debug = kwargs.pop('debug', False)
+        # debug = kwargs.pop('debug', False)
 
         if source_type == 1:
             p_dict = table_3_2_type1_dict.get(site_class, {})
@@ -888,7 +906,7 @@ try:
             p_dict = table_3_3_type2_dict.get(site_class, {})
         else:
             return {}
-        if p_dict is {}:
+        if p_dict == {}:
             return {}
     
         _, T_B, T_C, T_D = [p_dict[p] for p in ('S', 'T_B', 'T_C', 'T_D', )]
@@ -898,7 +916,7 @@ try:
                                  importance=importance, damp=damp)
         legend = ['Elastic Spectrum']
         fig0, ax0 = plt.subplots(figsize=figsize)
-        ax0.set_title(f'Spectral Accelerations')
+        ax0.set_title('Spectral Accelerations')
         ax0.set_xlabel('Building Period (s)')
         ax0.set_ylabel('Base Shear Coefficient (g)')
         ax0.plot(Te_range, Se_range)
@@ -949,18 +967,29 @@ try:
         #         s_d = S_d(plot_pts, a_gR, site_class, source_type, 
         #                   importance=importance, beta=beta, q=q)
         #         ax0.plot(plot_pts, s_d)
-        #         if debug: print(f's_d is {s_d} for q={q0}')
+        #         if debug:
+        #             print(f's_d is {s_d} for q={q0}')
         #     elif isinstance(q, (tuple, list)):
         #         for q0 in q:
         #             s_d = S_d(plot_pts, a_gR, site_class, source_type, 
         #                     importance=importance, beta=beta, q=q0)
         #             ax0.plot(plot_pts, s_d)
-        #             if debug: print(f's_d is {s_d} for q={q0}')
+        #             if debug:
+        #                 print(f's_d is {s_d} for q={q0}')
         #     else:
         #         pass        
         
         return fig0
 
-except:
+except ImportError:
     def plot_EC8_spectra(**kwargs):
         print("MatPlotLib library is not available")
+
+
+def main():
+    pass
+
+if __name__ == "__main__":
+    doctest.testmod()
+    print('== Doctest Complete ==')
+    main()

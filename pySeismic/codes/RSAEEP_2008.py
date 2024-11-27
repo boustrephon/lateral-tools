@@ -99,6 +99,8 @@ Both plan and elevation irreularities may be present. If structures are irregula
 elevation, then the `q`-factor shall be multiplied by 0.8
 """
 
+import doctest
+
 def get_T_g(site_class:str, is_saturated_mud:bool=True)->float:
     """Spectrum characteristic period, Tg, based on site-class 
     from Table IV.5
@@ -268,4 +270,12 @@ def s_d_func(T_g, q=1.5, a_gR=0.123, gamma_I=1.0, zeta=0.05, g=1.0, vertical=Fal
     
     return func
 
-    
+
+def main():
+    pass
+
+
+if __name__ == "__main__":
+    doctest.testmod()
+    print('Doctest Complete')
+    main()

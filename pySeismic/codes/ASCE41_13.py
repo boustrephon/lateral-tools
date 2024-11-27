@@ -22,14 +22,20 @@ TODO:
 * Everything...
 
 """
+import doctest
+from sys import path as sys_path
+from os.path import abspath, join as path_join, dirname
+
+# Add the parent directory of 'pySeismic' to sys.path
+sys_path.append(abspath(path_join(dirname(__file__), '..', '..')))
 
 
-from math import pi, sin, cos, tan, acos, asin, atan, atan2, log, log10
-from itertools import accumulate
+# from math import pi, sin, cos, tan, acos, asin, atan, atan2, log, log10
+# from itertools import accumulate
 
 from pySeismic.utilities import printt, interp, list_interp, \
     storey_force_coeffs, storey_force_distribution, storey_forces, \
-    storey_shear_moment, shear_coords
+    storey_shear_moment, shear_coords  # noqa: F401
 # from pySeismic.importing import k_gen # Eq 4-2a
 from pySeismic.codes.ASCE7_10 import site_coeffs as ASCE7_10_site_coeffs
 
@@ -244,3 +250,11 @@ table_4_4_dict_13 = {
     }
 
 
+def main():
+    pass
+
+
+if __name__ == "__main__":
+    doctest.testmod()
+    print('== Doctest Complete ==')
+    main()

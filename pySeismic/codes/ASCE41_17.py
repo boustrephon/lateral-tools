@@ -22,9 +22,18 @@ TODO:
 * Fix the M_s calculations
 
 """
-
+import doctest
+from sys import path as sys_path
+from os.path import abspath, join as path_join, dirname
 from math import pi, log, log10 #, sin, cos, tan, acos, asin, atan, atan2
 # from itertools import accumulate
+
+# Add the parent directory of 'pySeismic' to sys.path
+sys_path.append(abspath(path_join(dirname(__file__), '..', '..')))
+
+
+import matplotlib.pyplot as plt
+import matplotlib.lines as lines
 
 from pySeismic.utilities import interp #, list_interp, print_table, \
     # storey_force_coeffs, storey_force_distribution, storey_forces, \
@@ -257,7 +266,8 @@ def S_a_func(T, S_s, S_1, site_class, T_L = 12.0, damp = 0.05, debug=False):
                 S_xs * ((5.0 / B_1 - 2.0) * T / T_s + 0.4), 
                 S_x1 / B_1 / T) if T < T_L else T_L * S_x1 / (B_1 * T**2.0)
     except Exception as e:
-        if debug: print(e)
+        if debug:
+            print(e)
         return None
 
 # -----------------------------------------------------------------
@@ -464,7 +474,8 @@ def S_a_Tier_1_func(T: float, S_s: float, S_1: float, site_class: str, debug: bo
         S_X1 = F_v * S_1  # Eq 2-2
         return min(S_XS, S_X1 / T)  # Eq 4-3
     except Exception as e:
-        if debug: print(e)
+        if debug:
+            print(e)
         return None
 
 
@@ -833,16 +844,26 @@ checklist_dict = {
     }
 
 
-m2ft = lambda m: m / 0.3048
-ft2m = lambda ft: 0.3048 * ft
-sqin2sqm = lambda sqin: 0.00064516 * sqin
-sqm2sqin = lambda sqm: 1550.0031 * sqm
-kip2kN = lambda kip: 4.44822162 * kip
-kN2kip = lambda kN: 0.224808943 * kN
-psi2MPa = lambda psi: 0.0068947572932 * psi
-ksi2MPa = lambda ksi: 6.8947572932 * ksi
-MPa2psi = lambda MPa: 145.0377377 * MPa
-MPa2ksi = lambda MPa: 0.1450377377 * MPa
+def m2ft(m):
+    return m / 0.3048
+def ft2m(ft):
+    return 0.3048 * ft
+def sqin2sqm(sqin):
+    return 0.00064516 * sqin
+def sqm2sqin(sqm):
+    return 1550.0031 * sqm
+def kip2kN(kip):
+    return 4.44822162 * kip
+def kN2kip(kN):
+    return 0.224808943 * kN
+def psi2MPa(psi):
+    return 0.0068947572932 * psi
+def ksi2MPa(ksi):
+    return 6.8947572932 * ksi
+def MPa2psi(MPa):
+    return 145.0377377 * MPa
+def MPa2ksi(MPa):
+    return 0.1450377377 * MPa
 
 
 def building_checks_SI(building_info, debug=False):
@@ -854,7 +875,8 @@ def building_checks_SI(building_info, debug=False):
         ((n_f := building_info.get(f'frame number ({dirn})')) is not None) and \
         ((perf := building_info.get('performance')) is not None) and \
         ((f_c := building_info.get('frame concrete cyl strength (MPa)')) is not None):
-            if debug: print('v_j_avg_rcmf', 
+            if debug:
+                print('v_j_avg_rcmf', 
                 kN2kip(V_j), 
                 sqm2sqin(A_c), 
                 n_c, 
@@ -880,7 +902,8 @@ def building_checks_SI(building_info, debug=False):
         ((A_col := building_info.get(f'end column area, {dirn} (m2)')) is not None) and \
         ((perf := building_info.get('performance')) is not None) and \
         ((f_c := building_info.get('frame concrete cyl strength (MPa)')) is not None):
-            if debug: print('p_ot', 
+            if debug:
+                print('p_ot', 
                 kN2kip(V_j), 
                 m2ft(h_n), 
                 m2ft(L), 
@@ -894,21 +917,23 @@ def building_checks_SI(building_info, debug=False):
                 n_f, 
                 sqm2sqin(A_col), 
                 perf))
-            IO_grav_capacity = psi2MPa(0.13 * MPa2psi(f_c))  # Table 17-23
+            # IO_grav_capacity = psi2MPa(0.13 * MPa2psi(f_c))  # Table 17-23
             IO_capacity = psi2MPa(0.3 * MPa2psi(f_c))  # Table 17-23
             print(f'4.4.3.6 Concrete Col Axial OT Stress (p_ot) = {demand:4.2f} MPa')
             print(f'Table 17-23 IO Concrete Axial OT Stress Capacity = {IO_capacity:4.2f} MPa')
             print(f'D/C ratio ({dirn}) = {100 * demand / IO_capacity:2.2f} %\n')
 
     #  4.4.3.3 Shear Wall Stress
-    if debug: print('4.4.3.3 Shear Wall Stress')
+    if debug:
+        print('4.4.3.3 Shear Wall Stress')
     for dirn in ('X', 'Y'):
         if ((V_j := building_info.get('storey {dirn} shear (kN)')) is not None) and \
         ((A_w := building_info.get('shear wall area, {dirn} (m2)')) is not None) and \
         ((wtype := building_info.get('wall type, {dirn}')) is not None) and \
         ((perf := building_info.get('performance')) is not None) and \
         ((f_c := building_info.get('wall concrete cyl strength (MPa)')) is not None):
-            if debug: print('v_j_avg_sw', 
+            if debug:
+                print('v_j_avg_sw', 
                 kN2kip(V_j), 
                 sqm2sqin(A_w), 
                 wtype, 
@@ -927,8 +952,6 @@ def building_checks_SI(building_info, debug=False):
 ####### Plotting #########################################################
 # ASCE41_17_plots, ASCE41_17_tripartite_plot, tripartite_plot_ss
 
-import matplotlib.pyplot as plt
-import matplotlib.lines as lines
 
 def recur(coll):
     if isinstance(coll, (list, tuple)):
@@ -966,7 +989,8 @@ def ASCE41_17_plots(S_s, S_1, T_code_s = 0.0,
     
     # 
     valid_soil_classes = [k for k, v in S_a_dict.items() if any(vv[1] for vv in v)] #v is not None]
-    if debug: print('Valid Soil Classes: ', valid_soil_classes)
+    if debug:
+        print('Valid Soil Classes: ', valid_soil_classes)
     invalid_soil_classes = [s for s in soil_classes if s not in valid_soil_classes]
     print(f'Spectral acceleration is not defined for S_s = {S_s} and S_1 = {S_1} for classes: {" & ".join(invalid_soil_classes)}')
 
@@ -1001,29 +1025,29 @@ def ASCE41_17_plots(S_s, S_1, T_code_s = 0.0,
     [ax1.plot(T_range, S_a_range, label=s_c) 
      for s_c, T_range, S_a_range in 
      zip(valid_soil_classes, T_ranges, S_a_ranges)]
-    ax1.set_ylabel(f'Acceleration (g)')
+    ax1.set_ylabel('Acceleration (g)')
         
 
     T_ranges, S_v_ranges = zip(*(zip(*data) for data in S_v_data))
     [ax2.plot(T_range, S_v_range, label=s_c) 
      for s_c, T_range, S_v_range in 
      zip(valid_soil_classes, T_ranges, S_v_ranges)]
-    ax2.set_ylabel(f'Velocity (m/s)')
+    ax2.set_ylabel('Velocity (m/s)')
     
 
     T_ranges, S_d_ranges = zip(*(zip(*data) for data in S_d_data))
     [ax3.plot(T_range, S_d_range, label=s_c) 
      for s_c, T_range, S_d_range in 
      zip(valid_soil_classes, T_ranges, S_d_ranges)]
-    ax3.set_xlabel(f'Period (s)')
-    ax3.set_ylabel(f'Displacement (m)')
+    ax3.set_xlabel('Period (s)')
+    ax3.set_ylabel('Displacement (m)')
     
     
     [ax4.plot(S_d_range, S_a_range, label=s_c) 
      for s_c, S_d_range, S_a_range in 
      zip(valid_soil_classes, S_d_ranges, S_a_ranges)]
-    ax4.set_xlabel(f'Displacement (m)')
-    ax4.set_ylabel(f'Acceleration (g)')
+    ax4.set_xlabel('Displacement (m)')
+    ax4.set_ylabel('Acceleration (g)')
     
     
     if T_code_s > 0 and site_class in valid_soil_classes:
@@ -1076,7 +1100,8 @@ try:
         
 
         valid_soil_classes = [k for k, v in S_a_dict.items() if any(vv[1] for vv in v)] #v is not None]
-        if debug: print('Valid Soil Classes: ', valid_soil_classes)
+        if debug:
+            print('Valid Soil Classes: ', valid_soil_classes)
         invalid_soil_classes = [s for s in soil_classes if s not in valid_soil_classes]
         print(f'Spectral acceleration is not defined for S_s = {S_s} and S_1 = {S_1} for classes: {" & ".join(invalid_soil_classes)}')
 
@@ -1138,7 +1163,7 @@ try:
             kwargs: parameters for passing through to? Nowhere at present 
                 (can specify figsize and majorlines)
         """
-        debug = kwargs.get('debug', False)
+        # debug = kwargs.get('debug', False)
         figsize = kwargs.get('figsize', (10,8))
         plot_title = kwargs.get('plot_title', 'Response Spectra Tripartite Plot (5% damping)')
 
@@ -1297,3 +1322,13 @@ except Exception as e:
 
     def tripartite_plot_ranges(*args, e=e, **kwargs):
         print(e)
+
+
+def main():
+    pass
+
+
+if __name__ == "__main__":
+    doctest.testmod()
+    print('== Doctest Complete ==')
+    main()
