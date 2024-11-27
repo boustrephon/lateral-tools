@@ -9,6 +9,12 @@ Note that a building is considered to be one with resonant dynamic response if:
 
 from math import log  #, pi, sin, cos, tan, acos, asin, atan, atan2, log10
 from itertools import accumulate
+import doctest
+from sys import path as sys_path
+from os.path import abspath, join as path_join, dirname
+
+# Add the parent directory of 'pySeismic' to sys.path
+sys_path.append(abspath(path_join(dirname(__file__), '..', '..')))
 
 from pySeismic.utilities import list_interp
 # from pySeismic.utilities import print_table, interp, \
@@ -432,3 +438,12 @@ def print_table_1(heights=heights):
         f'| {get_q_z(v):4.2f} kPa') 
         for z, v in zip(heights, v_z)]
 
+
+def main():
+    pass
+
+
+if __name__ == "__main__":
+    doctest.testmod()
+    print('== Doctest Complete ==')
+    main()

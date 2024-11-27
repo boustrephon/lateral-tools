@@ -7,24 +7,31 @@ Note that a building is considered to be one with resonant dynamic response if:
   greater than 1.0Hz
 """
 
-from math import pi, sin, cos, tan, acos, asin, atan, atan2, \
-    log, log10, exp
+from math import log, exp #, log10, pi, sin, cos, tan, acos, asin, atan, atan2
 from itertools import accumulate
+import matplotlib.pyplot as plt
+import doctest
+from sys import path as sys_path
+from os.path import abspath, join as path_join, dirname
 
-from pySeismic.utilities import printt, interp, list_interp, \
-    storey_force_coeffs, storey_force_distribution, storey_forces, \
-    storey_shear_moment, shear_coords
+# Add the parent directory of 'pySeismic' to sys.path
+sys_path.append(abspath(path_join(dirname(__file__), '..', '..')))
+
+# printt, interp, storey_force_coeffs, storey_force_distribution, storey_forces, storey_shear_moment, shear_coords
+from pySeismic.utilities import list_interp
+# from pySeismic.utilities import *
+# from pySeismic.codes.HKWind2004 import get
 
 
 # ===============================
 # ====== General Functions ======
 # ===============================
 
-def get_storey_shear(storey_forces: list[float], ascending:bool=True) -> list[float]:
+def get_storey_shear(s_forces: list[float], ascending:bool=True) -> list[float]:
     """Returns a list of storey shears
 
     Args:
-        storey_forces (list[float]): list of storey forces (ascending or descending)
+        s_forces (list[float]): list of storey forces (ascending or descending)
         ascending (bool, optional): forces are ordered with rising storey levels. 
             Defaults to True.
 
@@ -32,9 +39,9 @@ def get_storey_shear(storey_forces: list[float], ascending:bool=True) -> list[fl
         list[float]: List of storey shears
     """
     if ascending:
-        return list(accumulate(storey_forces[::-1]))[::-1]
+        return list(accumulate(s_forces[::-1]))[::-1]
     else:
-        return list(accumulate(storey_forces))
+        return list(accumulate(s_forces))
 
 
 def get_storey_moment(storey_shears: list[float], 
@@ -141,7 +148,7 @@ def gen_trib_areas(list_of_storey_heights, list_of_storey_widths):
         h_len = len(list_of_storey_heights)
         w_len = len(list_of_storey_widths)
         if h_len != w_len:
-            err_msg = f'number of storey heights ' + \
+            err_msg = 'number of storey heights ' + \
                 f'({h_len}) does not match number of storey widths({w_len})'
             raise ValueError(err_msg)
         # TODO - fix 'list_of_zip'
@@ -446,7 +453,8 @@ def get_S_qh(H: float, B:float, N_x, ksi_x=0.02):
         B: building width
     
     """
-    if H is None or B is None: print(f'H = {H}; B = {B}')
+    if H is None or B is None:
+        print(f'H = {H}; B = {B}')
     L05p = B
     S_s = get_Ss(L05p)
     S_qh = 0.5 + ((S_s - 0.5)**2.0 + 0.25 / (B**0.5 * H * N_x**2 * ksi_x)) **0.5
@@ -477,19 +485,21 @@ def get_S_qz(Z: float, H: float, B:float,
                 top of buildings (Eq 5-1)
     """
     if N_x is None and H <= 50:
-        if debug: 
+        if debug:
             L_05p = {H/1.5 + 2*B}
             print(f'get_S_qz: N_x is None and H = {H:4.2f} (<= 50m) and L_0.5p = {L_05p}')
         S_qh =  get_S_q(H, B)  # independent of Z
         return S_qh
     elif N_x is None and H > 50:
-        if debug: print(f'get_S_qz: N_x is None and H = {H:4.2f} (> 50m)')
+        if debug:
+            print(f'get_S_qz: N_x is None and H = {H:4.2f} (> 50m)')
         err_msg = f'H is {H} (> 50) but N_x is not specified'
         raise ValueError(err_msg)
     else:
         S_qh = get_S_qh(H, B, N_x, ksi_x)
         S_qz = S_qh - 1.2 * (S_qh - (10/H)**0.14) * (1 - Z / H)
-        if debug: print(f'get_S_qz: Z = {Z:4.4g}; N_x = {N_x:6.6g} (not None); ksi_x = {ksi_x:6.6g} ' + \
+        if debug:
+            print(f'get_S_qz: Z = {Z:4.4g}; N_x = {N_x:6.6g} (not None); ksi_x = {ksi_x:6.6g} ' + \
             f'\n\tand H = {H:4.2f} (> 50m) and L_0.5p = {B}, s_qz = {S_qz:8.6g}')
         return S_qz
 
@@ -545,7 +555,8 @@ def get_W_z_func(H_e: float,
         """
         Q_z = get_Q_oz(Ze) * S_t * S_theta
         C_f = get_C_f(H_e/D, B/D)
-        if debug: print(f'*** Ze = {Ze:4.4g}  N_x = {N_x:4.4g}  ksi_x = {ksi_x:4.4g}***')
+        if debug:
+            print(f'*** Ze = {Ze:4.4g}  N_x = {N_x:4.4g}  ksi_x = {ksi_x:4.4g}***')
         S_qz = get_S_qz(Ze, H_e, B, N_x, ksi_x)
         W_z = Q_z * C_f * S_qz * B        
         return W_z
@@ -564,7 +575,8 @@ def get_W_z_func(H_e: float,
         """
         Q_z = get_Q_oz(Ze) * S_t * S_theta
         C_f = get_C_f(H_e/D, B/D)
-        if debug: print(f'*** Ze = {Ze:4.4g}  N_x = {N_x:4.4g}  ksi_x = {ksi_x:4.4g}***')
+        if debug:
+            print(f'*** Ze = {Ze:4.4g}  N_x = {N_x:4.4g}  ksi_x = {ksi_x:4.4g}***')
         S_qz = get_S_qz(Ze, H_e, B, N_x, ksi_x)
         W_z = Q_z * C_f * S_qz * B
         W_z_dict_func = {'W_z': W_z, 'Ze': Ze, 'B': B, 
@@ -636,8 +648,8 @@ def freestanding_wall_pressure(phi, l_h, lc_h):
     return None
 
 
-def cantilever_deflection(w, L, E, I):
-    return 0.125 * w * L**4 / E / I
+def cantilever_deflection(w, L, E, Ix):
+    return 0.125 * w * L**4 / E / Ix
 
 
 def cantilever_forces(p, B, L):
@@ -649,8 +661,6 @@ def cantilever_forces(p, B, L):
 # ====== Plot Functions =======
 # =============================
 
-
-import matplotlib.pyplot as plt
 
 def plot_Ss(Lmax = 3, L05p = 6.1, n=30, debug=False):
     """
@@ -732,8 +742,6 @@ def print_table_1(heights=heights):
 # ====== Summary Functions ======
 # ===============================
 
-from pySeismic.utilities import *
-# from pySeismic.codes.HKWind2004 import get
 
 def full_wind_calcs(
         storey_heights, 
@@ -785,24 +793,30 @@ def full_wind_calcs(
         by_ave = sum(storey_widths_y) / len(storey_widths_y)
         dd['storey_widths_y'] = storey_widths_y
     
-    if debug: print(f'Storey Widths (x) [dim {len(dd["storey_widths_x"])}]: ', 
+    if debug:
+        print(f'Storey Widths (x) [dim {len(dd["storey_widths_x"])}]: ', 
                     dd['storey_widths_x'])
-    if debug: print(f'Storey Widths (y) [dim {len(dd["storey_widths_y"])}]: ', 
+    if debug:
+        print(f'Storey Widths (y) [dim {len(dd["storey_widths_y"])}]: ', 
                     dd['storey_widths_y'])
-    if debug: print(f'bx_ave = {bx_ave}; by_ave = {by_ave} ')
-    if debug: print(f'Storey Heights [dim {len(dd["storey_heights"])}]: ', 
+    if debug:
+        print(f'bx_ave = {bx_ave}; by_ave = {by_ave} ')
+        print(f'Storey Heights [dim {len(dd["storey_heights"])}]: ', 
                     dd['storey_heights'])
     dd['storey_elevs'] = gen_elevs(dd['storey_heights'])
-    if debug: print(f'Storey Elevations [dim {len(dd["storey_elevs"])}]: ', 
+    if debug:
+        print(f'Storey Elevations [dim {len(dd["storey_elevs"])}]: ', 
                     dd['storey_elevs'])
     dd['trib_heights'] = gen_trib_heights(dd['storey_heights'])
-    if debug: print(f'Tributary heights [dim {len(dd["trib_heights"])}]: ', 
+    if debug:
+        print(f'Tributary heights [dim {len(dd["trib_heights"])}]: ', 
                     dd['trib_heights'])
     dd['storey_mean_vels'] = [get_v_z(z) for z in dd['storey_elevs']] 
     dd['storey_pressures'] = [get_q_z(v) for v in dd['storey_mean_vels']]
     
     H_e = max(dd['storey_elevs'])
-    if debug: print('Building Height: ', H_e)
+    if debug:
+        print('Building Height: ', H_e)
     
     dd['C_fx'] = [get_C_f(H_e / D, B / D) 
                     for B, D in zip(dd['storey_widths_x'], 
@@ -817,7 +831,7 @@ def full_wind_calcs(
     dd['Q_z'] = [S_e * Q_z 
                                 for Q_z in dd['Q_oz']]    
     
-    damp_x = ksi_x  ;  damp_y = ksi_y
+    damp_x, damp_y = ksi_x, ksi_y
     if N_x is None and H_e <= 100:
         N_x = approx_fundamental_frequency(H_e)
         damp_x = typical_damping_ratio(H_e / bx_ave, 'RC', 'loads')
@@ -850,7 +864,8 @@ def full_wind_calcs(
                                     dd['storey_widths_x'], 
                                     dd['storey_widths_y'],
                                                         )]
-    if debug: print('W_x (dim), W_y (dim): ', len(dd['W_x']), ',', len(dd['W_y']))
+    if debug:
+        print('W_x (dim), W_y (dim): ', len(dd['W_x']), ',', len(dd['W_y']))
     
     dd['storey_forces_x'] = [F * h 
                         for F, h in zip(dd['W_x'], dd['trib_heights'])]
@@ -890,19 +905,19 @@ def full_wind_calcs(
     max_storey_moment_yy = dd['storey_moments_yy'][0]
     
     if round(sum_of_storey_forces_x) != round(max_storey_shear_x):
-        err_msg = f'Error in sum of x-dir forces ' + \
+        err_msg = 'Error in sum of x-dir forces ' + \
                 f'({sum_of_storey_forces_x:6,.6g} vs {max_storey_shear_x:6,.6g})'
         err_list.append(err_msg)
     if round(sum_of_storey_moments_yy) != round(max_storey_moment_yy):
-        err_msg = f'Error in sum of yy-dir moments ' + \
+        err_msg = 'Error in sum of yy-dir moments ' + \
                 f'({sum_of_storey_moments_yy:6,.6g} vs {max_storey_moment_yy:6,.6g})'
         err_list.append(err_msg)
     if round(sum_of_storey_forces_y) != round(max_storey_shear_y):
-        err_msg = f'Error in sum of y-dir forces ' + \
+        err_msg = 'Error in sum of y-dir forces ' + \
                 f'({sum_of_storey_forces_y:6,.6g} vs {max_storey_shear_y:6,.6g})'
         err_list.append(err_msg)
     if round(sum_of_storey_moments_xx) != round(max_storey_moment_xx):
-        err_msg = f'Error in sum of xx-dir moments ' + \
+        err_msg = 'Error in sum of xx-dir moments ' + \
                 f'({sum_of_storey_moments_xx:6,.6g} vs {max_storey_moment_xx:6,.6g})'
         err_list.append(err_msg)
     if len(err_list) > 0 and rigorous:
@@ -911,7 +926,8 @@ def full_wind_calcs(
     elif len(err_list) > 0: 
         print('WARNING:', err_msg)
     else:
-        if debug: print('No errors / warnings')
+        if debug:
+            print('No errors / warnings')
 
     ## PRINT RESULTS if print_data is True #######
     if print_data:
@@ -934,7 +950,8 @@ def full_wind_calcs(
         
         keys = ['storey_heights', 'storey_elevs', 'Q_oz', 'Q_z', 
                         'storey_widths_x', 'storey_widths_y', 'C_fx', 'C_fy']
-        if debug: print([len(dd[k]) for k in keys])
+        if debug:
+            print([len(dd[k]) for k in keys])
         print('Height | Elev    | Q_oz     | Q_z       ' + \
                 '| B_x       | B_y          | C_fx         | C_fy     ')
         [print(f'{h:4.2f} m | {z:5.5g} m | {Q_oz:4.2f} kPa| {Q_z:4.2f} kPa | ' + \
@@ -958,7 +975,8 @@ def full_wind_calcs(
 
         keys = ['storey_elevs', 'trib_heights', 'S_qxz', 'S_qyz',
                         'W_x', 'W_y', 'storey_forces_x', 'storey_forces_y']
-        if debug: print([len(dd[k]) for k in keys])
+        if debug:
+            print([len(dd[k]) for k in keys])
         print('Elev.        | Trib. H| S_q,z            | Wx        | Wy        | ' + \
             'Forces (x & y)')
         [print(f'{z:6.2f} m | {h:4.2f} m    | ' + \
@@ -992,3 +1010,13 @@ def full_wind_calcs(
         print()
 
     return dd
+
+
+def main():
+    pass
+
+
+if __name__ == "__main__":
+    doctest.testmod()
+    print('== Doctest Complete ==')
+    main()

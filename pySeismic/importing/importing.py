@@ -14,75 +14,17 @@ https://peer.berkeley.edu/peer-strong-ground-motion-databases
 
 """
 
-from os.path import join, splitext
-# from os.path import exists, isdir, isfile, basename
 from typing import Union, Any, Dict, List, Tuple # , PathLike
-from os.path import exists, basename
-from pySeismic.utilities import scale_to_SI_units
+import doctest
+from sys import path as sys_path
+from os.path import abspath, join as path_join, dirname, exists, basename, splitext
 
+# Add the parent directory of 'pySeismic' to sys.path
+sys_path.append(abspath(path_join(dirname(__file__), '..', '..')))
+
+
+from pySeismic.utilities import scale_to_SI_units, as_float #, as_numeric
 import csv
-
-def as_numeric(txt:str, default:Any=None) -> Union[int, float, str]:
-    """Converts string to number (int or float), if possible
-        
-    Args:
-        txt: text for conversion to integer or float
-        default: default value if conversion fails
-    
-    Returns:
-        text as int, float or default value
-
-    >>> as_numeric('6')
-    6
-    >>> as_numeric('3.14')
-    3.14
-    >>> as_numeric('3.14mm')
-    None
-    >>> as_numeric('3.14mm', 0)
-    0
-    """
-    scale=1
-    if txt.rstrip().endswith('%'):
-        txt = txt.rstrip().replace('%', '')
-        scale=0.01
-    try:
-        return scale*int(txt)
-    except ValueError:
-        try:
-            return scale*float(txt)
-        except ValueError:
-            if default is None:
-                if scale == 1:
-                    return txt
-                else:
-                    return txt + '%'
-            else:
-                return default
-
-
-def as_float(txt:str, default:Any=None) -> Union[float, str]:
-    """Converts string to number (float), if possible
-    
-    Args:
-        txt: text for conversion to float
-        default: default value if conversion fails
-    
-    Returns:
-        text as float or default value
-
-    >>> as_float('6')
-    6.0
-    >>> as_float('3.14')
-    3.14
-    >>> as_float('3.14mm')
-    None
-    >>> as_float('3.14mm', 0)
-    0
-    """
-    try:
-        return float(txt)        
-    except:
-        return default
 
 
 def read_csv(csv_file, header=1, as_dict=True):
@@ -158,7 +100,7 @@ def read_ASC(
         asc_dict['Filepath'] = file_path
         with open(file_path, 'r') as asc_file:
             sampling_interval = 0.0
-            header_format = ''
+            # header_format = ''
             data_type = ''
             for line in asc_file:
                 if len(line.strip()) == 0:   #  empty line
@@ -170,14 +112,16 @@ def read_ASC(
                         sampling_length = len(value.strip())
                         sampling_interval = as_float(value.strip(), 0.0)
                     elif key.strip() == 'HEADER_FORMAT':
-                        header_format = value.strip() # DYNA 1.2
+                        # header_format = value.strip() # DYNA 1.2
+                        pass
                     elif key.strip() == 'DATA_TYPE':
                         data_type = value.strip() # e.g. Acceleration Response Spectrum
                     elif key.strip() == 'UNITS':
                         units = value.strip() # e.g. cm/s^2
                         scale = scale_to_SI_units(units, 1)
                 else:
-                    data = [as_float(n, None) for n in line.strip().split()]
+                    data = [as_float(n, 'None') for n in line.strip().split()]
+                    data = [(None if a=='None' else a) for a in data]
                     if sampling_interval <= 0:
                         pass
                     elif len(data) == 1:
@@ -218,11 +162,11 @@ def ASC_import(asc_files, folder=r'./',
         # ev_st = f'{event}_{station}'
         eq_dir = asc_list[-1].strip()
         
-        infile = join(folder, asc)
-        outfile = join(folder, name + '.csv')
+        infile = path_join(folder, asc)
+        outfile = path_join(folder, name + '.csv')
 
         if not exists(infile):
-            raise IOError(f'File is not present')
+            raise IOError('File is not present')
         
         # print(infile) ; print(outfile) ; print(exists(infile))
         
@@ -239,7 +183,8 @@ def ASC_import(asc_files, folder=r'./',
             asc_dict['Station'] = station
             asc_dict['Eq_dir'] = eq_dir
             EQ_dict[name] = asc_dict.copy()
-            if debug: print(f'{data_type:40s}: File {asc}')
+            if debug:
+                print(f'{data_type:40s}: File {asc}')
             
             # Export data to CSV files
             if export:
@@ -260,8 +205,6 @@ def ASC_import(asc_files, folder=r'./',
                     [csv_file.write(f'{x},{y}\n') for x, y in th]    
     
     return EQ_dict
-
-
 
 
 def ASC_import_ss(asc_files, folder=r'./', export=False):
@@ -286,8 +229,8 @@ def ASC_import_ss(asc_files, folder=r'./', export=False):
 
         asc_dict = {'Input File': asc, 'EQ_DIR': eq_dir}
         
-        infile = join(folder, asc)
-        outfile = join(folder, name + '.csv')
+        infile = path_join(folder, asc)
+        outfile = path_join(folder, name + '.csv')
         # print(infile) ; print(outfile) ; print(exists(infile))
         
         th = []
@@ -384,8 +327,8 @@ def ASC_import2_ss(asc_files, folder=r'./'):
         ev_st = f'{event}_{station}'
         direction = station = asc_list[-1].strip()
 
-        infile = join(folder, asc)
-        # outfile = join(folder, asc.replace('.asc', '.csv'))
+        infile = path_join(folder, asc)
+        # outfile = path_join(folder, asc.replace('.asc', '.csv'))
         # print(infile)
         # print(outfile)
         # print(exists(infile))
@@ -460,3 +403,12 @@ def ASC_import2_ss(asc_files, folder=r'./'):
     
     return {'TH':TH_dict, 'RS':RS_dict}
 
+
+def main():
+    pass
+
+
+if __name__ == "__main__":
+    doctest.testmod()
+    print('== Doctest Complete ==')
+    main()

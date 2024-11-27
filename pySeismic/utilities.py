@@ -41,11 +41,46 @@ def print_dir(pkg, n=4):
      for i, x in enumerate(dir(pkg)) if not x.startswith('__')]
 
 
-def as_float(x):
+# def as_float(x):
+#     try:
+#         return float(x)        
+#     except ValueError:
+#         return x
+
+
+def as_float(txt:str, default:Any=None) -> Union[float, str]:
+    """Converts string to number (float), if possible
+    
+    Args:
+        txt: text for conversion to float
+        default: default value if conversion fails
+    
+    Returns:
+        text as float or default value
+
+    >>> as_float('6')
+    6.0
+    >>> as_float('3.14')
+    3.14
+    >>> as_float('3.14mm')
+    '3.14mm'
+    >>> as_float('3.14mm', 0)
+    0
+    """
+    scale=1
+    if txt.rstrip().endswith('%'):
+        txt = txt.rstrip().replace('%', '')
+        scale=0.01
     try:
-        return float(x)        
-    except:  # noqa: E722
-        return x
+        return scale*float(txt)       
+    except ValueError:
+        if default is None:
+            if scale == 1:
+                return txt
+            else:
+                return txt + '%'
+        else:
+            return default
 
 
 def as_numeric(txt:str, default:Any=None) -> Union[int, float, str, None]:
@@ -62,6 +97,8 @@ def as_numeric(txt:str, default:Any=None) -> Union[int, float, str, None]:
     6
     >>> as_numeric('3.14')
     3.14
+    >>> as_numeric('23.3%')
+    0.233
     >>> as_numeric('3.14mm')
     '3.14mm'
     >>> as_numeric('3.14mm', 0)
