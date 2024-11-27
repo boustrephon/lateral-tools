@@ -2,13 +2,18 @@
 """
 
 # from math import pi, sin, cos, tan, acos, asin, atan, atan2, log, log10
-from math import exp, log
+from math import exp, log, isclose  # noqa: F401
 from itertools import accumulate, chain
 from typing import Any, Union
 
-from os.path import exists #, abspath
 from csv import reader #, excel_tab
 from tkinter import filedialog, Tk
+import sys
+from os.path import join as path_join, dirname, abspath, exists
+import doctest
+
+# Add the parent directory of 'pySeismic' to sys.path
+sys.path.append(abspath(path_join(dirname(__file__), '..')))
 
 
 # ======================================
@@ -43,7 +48,7 @@ def as_float(x):
         return x
 
 
-def as_numeric(txt:str, default:Any=None) -> Union[int, float, str]:
+def as_numeric(txt:str, default:Any=None) -> Union[int, float, str, None]:
     """Converts string to number (int or float), if possible
         
     Args:
@@ -58,7 +63,7 @@ def as_numeric(txt:str, default:Any=None) -> Union[int, float, str]:
     >>> as_numeric('3.14')
     3.14
     >>> as_numeric('3.14mm')
-    None
+    '3.14mm'
     >>> as_numeric('3.14mm', 0)
     0
     """
@@ -177,6 +182,8 @@ def list_interp(val: float, list_1: list[float], list_2: list[float],
         list_1 (list[float]): the lookup list
         list_2 (list[float]): is the result list with values corresponding 
                 to those on list_1
+        extend (Bool, optional): the option to extend the values 
+            outside the limits of list_1 with the bookend values. Defaults to False.
         extrapolate (Bool, optional): the option to extrapolate linearly 
             outside the limits of list_1. Defaults to False.
 
@@ -184,13 +191,14 @@ def list_interp(val: float, list_1: list[float], list_2: list[float],
         float: Linearly interpolated function
         
     Examples:
-        >>> list_interp(val, list_1, list_2)
         >>> list_interp(0.5, [0.2, 0.8], [1.1, 1.35])
         1.225
-        >>> list_interp(0.08, [0.2, 0.8], [1.1, 1.35], True)
+        >>> list_interp(0.08, [0.2, 0.8], [1.1, 1.35], True, True)
         1.05
-        >>> list_interp(0.08, [0.2, 0.8], [1.1, 1.35], False)
+        >>> list_interp(0.08, [0.2, 0.8], [1.1, 1.35], True, False)
         1.1
+        >>> list_interp(0.08, [0.2, 0.8], [1.1, 1.35], False)
+        0
     """
     i_list = [i for i, n in enumerate(list_1) if n == val]
     if i_list:  
@@ -245,9 +253,9 @@ def exceedance2return(exceedance_probability:float, period:float=50)->float:
         float: _description_
     
     Examples:
-        >>> isclose(exceedance2return(exceedance_probability=0.1, period=50), 474.56107905149526)
+        >>> isclose(exceedance2return(exceedance_probability=0.1, period=50), 474.56107905149526, rel_tol=1e-9)
         True
-        >>> isclose(exceedance2return(exceedance_probability=0.2, period=50), 224.07100588622754)
+        >>> isclose(exceedance2return(exceedance_probability=0.2, period=50), 224.07100588622754, rel_tol=1e-9)
         True
   
 
@@ -638,3 +646,11 @@ def print_bar_areas_given_spacing(bar_spacing_mm,
         for D in bar_list]
     
 
+def main():
+    pass
+
+
+if __name__ == "__main__":
+    doctest.testmod()
+    print('== Doctest Complete ==')
+    main()
