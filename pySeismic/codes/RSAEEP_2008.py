@@ -100,6 +100,9 @@ elevation, then the `q`-factor shall be multiplied by 0.8
 """
 
 import doctest
+from typing import Sequence
+from os.path import join as exists # , path_join
+
 
 def get_T_g(site_class:str, is_saturated_mud:bool=True)->float:
     """Spectrum characteristic period, Tg, based on site-class 
@@ -155,6 +158,18 @@ def get_nu(importance_category:str)->float:
     else:
         raise ValueError(f'Invalid importance category: {importance_category}')
 
+
+def get_T_range(T_values: Sequence[float|int], N_values: int | Sequence[int])->Sequence[float]:
+    T_values = list(T_values)
+    if isinstance(N_values, int):
+        N_values = len(T_values) * [N_values]
+    if len(T_values) != len(N_values):
+        raise ValueError ('Both T_values and N_values must have the same ')
+    
+    T_range = []
+    for N, T1, T2 in zip(N_values, [0] + T_values[:-1], T_values):
+        T_range = T_range + [T1 + (T2 - T1) * i / N for i in range(N)]
+    return T_range + [float(T_values[-1])]
 
 
 def s_e_func(T_g:float, zeta=0.05, a_gR=0.123, gamma_I=1.0, vertical=False, default=None):
@@ -269,6 +284,48 @@ def s_d_func(T_g, q=1.5, a_gR=0.123, gamma_I=1.0, zeta=0.05, g=1.0, vertical=Fal
                 return default
     
     return func
+
+
+def write_GWA_spectra(TS_ranges, file_path=None, debug=False):
+    spectra = {title: ' '.join([f'({T:.8g},{S:.8g})' for T, S in TS_range]) for title, TS_range in TS_ranges.items()}
+    # _ = [print(spectrum) for spectrum in spectra.values()]
+
+    gwa_unit_data = (
+        'UNIT_DATA.1	FORCE	kN	0.001',
+        'UNIT_DATA.1	LENGTH	m	1',
+        'UNIT_DATA.1	DISP	mm	1000',
+        'UNIT_DATA.1	SECTION	cm	100',
+        'UNIT_DATA.1	MASS	kg	1',
+        'UNIT_DATA.1	TIME	s	1',
+        'UNIT_DATA.1	TIME_MED	min	0.01666666667',
+        'UNIT_DATA.1	TIME_LONG	day	1.157407407e-05',
+        'UNIT_DATA.1	TEMP	°C	1',
+        'UNIT_DATA.1	STRESS	N/mm²	1e-06',
+        'UNIT_DATA.1	ACCEL	g	0.1019716213',
+        'UNIT_DATA.1	ENERGY	MJ	1e-06',
+        'UNIT_DATA.1	ANGLE	°	57.2957795',
+        )
+    
+
+    # default_folder = r'C:\Users\andrew.mole\OneDrive - Arup\Projects\Wynn Macau Event Center\GSA Model'
+    # file_name = 'spectra.gwa'
+    # file_path = path_join(default_folder, file_name)
+    if file_path is None:
+        file_path = 'spectra.gwa'
+
+    with open(file_path, 'w') as fp:
+        fp.write('! EQ Spectrum Data written by RSAEEP_2008.py\n')
+        [fp.write(gwa_unit_datum + '\n') for gwa_unit_datum in gwa_unit_data]
+        for i,(title, spectrum) in enumerate(spectra.items()):
+            # print(spectrum)
+            spectrum_data = '\t'.join(['SPECTRUM.1', str(i+1), title, 'USER', 'PERIOD', 'ACCEL', spectrum, 'CONST', 'CODE', '0.05'])
+            fp.write(spectrum_data + '\n')
+        fp.write('END\n')
+    
+    if debug:
+        print(f'Spectrum file {"written" if exists(file_path) else "NOT written"} \n\t{file_path}')
+    
+    return True if exists(file_path) else False
 
 
 def main():
