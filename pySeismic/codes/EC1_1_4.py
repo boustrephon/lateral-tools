@@ -12,16 +12,21 @@ sys.path.append(abspath(path_join(dirname(__file__), '..', '..')))
 # print('sys_path:', sys.path)
 
 from math import log10
+import matplotlib.pyplot as plt
 from pySeismic.utilities import list_interp  # noqa: E402
 # from ..utilities import list_interp
 
 
 def get_c_f0(d, b):
-    """_summary_
+    """Force coefficient c_f,0 of rectangular sections with sharp 
+    corners and without free end flow (Figure 7.23).
+    
+    The force coefficient c_f is calculated by multiplying c_f,0 by
+    psi_r and psi_lambda.
 
     Args:
-        d (float): width
-        b (float): vertical dimension
+        d (float): width (dimension in direction of wind flow)
+        b (float): breadth (dimension perpendicular to wind flow)
 
     Returns:
         float: _description_
@@ -37,6 +42,81 @@ def get_c_f0(d, b):
     d_b = (0.1, 0.2, 0.7, 1.0, 2.0, 5.0, 10.0, 50.0)
     c_f0 = (2.0, 2.0, 2.4, 2.1, 1.65, 1.0, 0.9, 0.9)
     return list_interp(d/b, d_b, c_f0, extend=True)
+
+
+def plot_c_f0(d_b_dict):
+    """Force coefficient c_f,0 of rectangular sections with sharp 
+    corners and without free end flow (Figure 7.23).
+    
+    Note: the force coefficient c_f is calculated by multiplying c_f,0 by
+    psi_r and psi_lambda.
+
+    Args:
+        d_b_dict (dict[str]): width (dimension in direction of wind flow)
+            divided by breadth (dimension perpendicular to wind flow)
+
+    Returns:
+        list[float]: list of c_f0 values
+    
+    Example:
+        >>> get_c_f0(9.2, 10.0)
+        2.18
+        >>> get_c_f0(9.0, 1.0)
+        0.92
+        >>> [get_c_f0(d, 1) for d in (0.05, 0.1, 0.2, 0.7, 1.0, 2.0, 5.0, 10.0, 50.0, 60.0)]
+        [2.0, 2.0, 2.0, 2.4, 2.1, 1.65, 1.0, 0.9, 0.9, 0.9]
+    """
+    c_f0_list = []
+    
+    d_b = (0.1, 0.2, 0.6, 0.7, 1.0, 2.0, 5.0, 10.0, 50.0)
+    c_f0 = (2.0, 2.0, 2.35, 2.4, 2.1, 1.65, 1.0, 0.9, 0.9)
+    
+    # Plot the line
+    plt.plot(d_b, c_f0, label='')
+
+    # Plot the dots
+    for k, d_b_val in d_b_dict.items():
+        c_f0_val = list_interp(d_b_val, d_b, c_f0, extend=True)
+        c_f0_list.append(c_f0_val)
+        plt.plot(d_b_val, c_f0_val, 'o', label=k)
+
+    # Set x and y limits
+    plt.xlim(0.1, 60)
+    plt.ylim(0.0, 2.8)
+
+    # Set x-axis to log scale
+    plt.xscale('log')
+
+    # Set x and y labels
+    plt.xlabel('d / b')
+    plt.ylabel('$c_{f,0}$')
+
+    # Add gridlines
+    plt.grid(True, which='both', linestyle='--', linewidth=0.5)
+
+    # Add specific lines
+    [plt.axhline(y=yval, color='grey', linestyle='-', linewidth=0.5, zorder=0) 
+     for yval in c_f0[1:-1]]
+    [plt.axvline(x=xval, color='grey', linestyle='-', linewidth=0.5, zorder=0)
+     for xval in d_b[1:-2]]
+
+    # Add text at specific coordinates
+    [plt.text(0.1, y+0.02, f'{y}', fontsize=7, ha='left') for y in c_f0[1:-1]]
+
+    # Add a title
+    plt.title('Figure 7.23 Force coefficients $c_{f,0}$')
+
+    # Add a legend
+    plt.legend()
+
+    # Show the plot
+    plt.show()
+
+    return c_f0_list
+
+
+def get_c_fz(b, d_tot, theta=0):
+    return list_interp(b / d_tot, (0,14,22), (0.75, 0.15, 0.15), extend=True)
 
 
 FLAT_ROOF_COEFF_DICT = {
@@ -71,12 +151,14 @@ def get_flat_roof_c_pe(zone:str, area:float, roof_type:str = 'sharp eaves',
     """Returns external pressure coefficient for flat roofs based on values
     in Table 7.2 (taken from dictionary: 'FLAT_ROOF_COEFF_DICT')
     (Table 7.2 of EC1-1-4)
+    
+    The effect of area upon the output is taken from figure 7.2
 
     Args:
         roof_type (str): 'sharp eaves' , 'parapets', 'curved eaves', 'mansard eaves'
         zone (str): 'F' to 'I', or 'Ip' or 'In' (since positive or negative pressure 
             can be returned, default for 'I' is negative.)
-        area (float): _area of element(s) under consideration (sq.m.)
+        area (float): area of element(s) under consideration (sq.m.)
         hp_h (float, optional): Required for parapet cases: height of parapet (h_p) 
             over building height (h). Defaults to 0.
         r_h (float, optional): Required for curved eaves cases: radius of eaves (r) 
@@ -116,7 +198,8 @@ def get_flat_roof_c_pe(zone:str, area:float, roof_type:str = 'sharp eaves',
     if roof_type == 'sharp eaves':
         c_pe_dict = FLAT_ROOF_COEFF_DICT.get('sharp eaves', None)
         c_pe_10, c_pe_1 = [c_pe_dict.get(zone + area) for area in ('_10', '_1')]
-        c_pe = list_interp(area, (1.0, 10.0), (c_pe_1, c_pe_10), extend=True)
+        # c_pe = list_interp(area, (1.0, 10.0), (c_pe_1, c_pe_10), extend=True)
+        c_pe = max(c_pe_10, min(c_pe_1, c_pe_1 - (c_pe_1 - c_pe_10) * log10(area))) # from Figure 7.2
     else:
         pattern = ''
         if roof_type.startswith(pattern := 'parapets'):
@@ -134,9 +217,10 @@ def get_flat_roof_c_pe(zone:str, area:float, roof_type:str = 'sharp eaves',
         # Get the results for the area extremes (c_pe_10 and c_pe_1 for the range of the variable (h_p/h, r/h & alpha))
         c_pe_10_range, c_pe_1_range = [[(k, c_pe_dict.get(zone + area)) for k, c_pe_dict in c_pe_dicts.items()] for area in ('_10', '_1')]
         c_pe_10, c_pe_1 = [list_interp(value * scale, *zip(*c_pe_range), extend=True) for c_pe_range in (c_pe_10_range, c_pe_1_range)]
-        c_pe_min, c_pe_max = sorted([c_pe_1, c_pe_10])
-        c_pe = max(c_pe_min, min(c_pe_max, c_pe_1 - (c_pe_1 - c_pe_10) * log10(area)))
     
+        c_pe_min, c_pe_max = sorted([c_pe_1, c_pe_10])
+        c_pe = max(c_pe_min, min(c_pe_max, c_pe_1 - (c_pe_1 - c_pe_10) * log10(area))) # from Figure 7.2
+        
     return c_pe
 
 
