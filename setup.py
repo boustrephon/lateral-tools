@@ -1,9 +1,19 @@
-from distutils.core import setup
-setup(name='pyseismic',
-      version='0.1',
-      py_modules=['pyseismic'],
-      description='Utilities for seismic engineering',
-    author='andrew.mole@arup.com',
+from setuptools import setup, find_packages
+
+setup(
+    name='lateral-tools',
+    version='0.3',
+    description='Utilities for seismic and lateral load engineering',
+    author='andrew.mole@gmail.com',
     license=None,
-    install_requires=['matplotlib>=3.0'],
-    )
+    package_dir={'': 'src'},
+    packages=find_packages(where='src'),
+    install_requires=[
+        'matplotlib>=3.0',
+        'numpy',
+        'scipy',
+        'pandas',
+        'openpyxl',
+    ],
+    python_requires='>=3.9',
+)
