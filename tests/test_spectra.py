@@ -1,8 +1,18 @@
 """
-Tests for response spectrum plotting and builders.
+Tests for the lateral-tools package.
 
-Verifies that the code-specific spectrum builders return sensible values
-and that plot_seismic_spectrum runs without errors.
+Part of the lateral-tools project for seismic and lateral load engineering.
+
+Test coverage:
+    - GB50011: alpha_max lookup, design spectrum shape
+    - EC8: elastic and design spectra (with behaviour factor q)
+    - ASCE 7: design response spectrum plateau and long-period decay
+    - plot_seismic_spectrum: Figure return, multi-code, return_data,
+      pre-computed data, log axes
+    - math_utils: interp, list_interp, as_float, as_numeric
+    - risk_utils: exceedance2return, return2exceedance
+    - analysis: storey_elevations, storey_force_distribution
+    - tier1_checks: shear stress capacities
 """
 
 import numpy as np

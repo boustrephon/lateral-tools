@@ -1,15 +1,18 @@
 """
-spectra.py — Spectra plotting functions.
+spectra.py — Response spectrum plots and interpolation.
 
 Part of the lateral-tools package for seismic and lateral load engineering.
+
+Functions
+---------
+plot_seismic_spectrum   : Multi-code response spectrum plotter (GB50011, EC8, ASCE7, ASCE41).
+response_spectrum_plots : 4-panel acceleration/velocity/displacement spectrum plots.
+smooth_interpolate      : Compare multiple interpolation methods on spectral data.
+akima_interpolate       : Akima interpolation with optional annotation.
+_interp_sa              : Helper to interpolate Sa onto query periods.
+_resolve_spectrum       : Dispatcher that calls the correct code-specific builder.
 """
 from __future__ import annotations
-
-"""
-These are plotting functions for seismic engineering. The data needs to 
-be generated elsewhere, for example from eqsigs.
-
-"""
 
 from collections.abc import Sequence, Iterator
 from typing import TypeVar, Any, overload, Literal

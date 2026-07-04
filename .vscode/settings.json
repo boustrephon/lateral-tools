@@ -10,6 +10,10 @@
     "/^python -m pytest tests/ -v 2>&1 \\| tail -25$/": {
       "approve": true,
       "matchCommandLine": true
+    },
+    "/^python -m pytest tests/ -v --tb=short 2>&1 \\| tail -30$/": {
+      "approve": true,
+      "matchCommandLine": true
     }
   }
 }

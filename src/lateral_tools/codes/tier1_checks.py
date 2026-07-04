@@ -3172,7 +3172,7 @@ def main():
         rows_high_io = generate_checklist_spreadsheet(
             seismicity='High',
             performance_level='IO',
-            output_file='./checklists_high_io.csv'
+            output_file='./resources/checklists_high_io.csv'
         )
         print_checklist_summary(rows_high_io)
     
@@ -3182,7 +3182,7 @@ def main():
         rows_mod_cp = generate_checklist_spreadsheet(
             seismicity='Moderate',
             performance_level='CP',
-            output_file='./checklists_C2_cp.csv',
+            output_file='./resources/checklists_C2_cp.csv',
             building_types=['all', 'C2']
         )
         print_checklist_summary(rows_mod_cp)

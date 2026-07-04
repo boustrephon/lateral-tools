@@ -134,26 +134,4 @@ dmypy.json
 .html
 * ss.ipynb
 
-notebooks/RSAEEP_III_1.2.png
-notebooks/RSAEEP_III_1.2.SVG
-notebooks/wind_line_loads.xlsx
-notebooks/data.pickle
-
-notebooks/RSAEEP.html
-notebooks/RSAEEP.docx
-notebooks/EN1991 notebook ss.docx
-notebooks/EN1991 notebook.docx
-notebooks/RSAEEP_files/libs/bootstrap/bootstrap-icons.css
-notebooks/RSAEEP_files/libs/bootstrap/bootstrap-icons.woff
-notebooks/RSAEEP_files/libs/bootstrap/bootstrap.min.css
-notebooks/RSAEEP_files/libs/bootstrap/bootstrap.min.js
-notebooks/RSAEEP_files/libs/clipboard/clipboard.min.js
-notebooks/RSAEEP_files/libs/quarto-html/anchor.min.js
-notebooks/RSAEEP_files/libs/quarto-html/popper.min.js
-notebooks/RSAEEP_files/libs/quarto-html/quarto-syntax-highlighting.css
-notebooks/RSAEEP_files/libs/quarto-html/quarto.js
-notebooks/RSAEEP_files/libs/quarto-html/tippy.css
-notebooks/RSAEEP_files/libs/quarto-html/tippy.umd.min.js
-notebooks/RSAEEP_files/figure-html/cell-9-output-1.png
-notebooks/RSAEEP_files/figure-html/cell-34-output-2.png
-notebooks/wind_line_loads_G.xlsx
+local/

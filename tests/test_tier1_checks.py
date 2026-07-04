@@ -1,5 +1,5 @@
 import pytest
-from pySeismic.codes.tier1_checks import capacity_shear_stress_rcmf, check_shear_stress_rcmf
+from lateral_tools.codes.tier1_checks import capacity_shear_stress_rcmf, check_shear_stress_rcmf
 
 def test_capacity_shear_stress_rcmf():
     assert capacity_shear_stress_rcmf('IO', 4000) == pytest.approx(max(2*(4000**0.5),100))

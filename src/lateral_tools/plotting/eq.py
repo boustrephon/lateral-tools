@@ -1,15 +1,15 @@
 """
-eq.py — Eq plotting functions.
+eq.py — Earthquake ground-motion time-history and response spectrum plots.
 
 Part of the lateral-tools package for seismic and lateral load engineering.
+
+Functions
+---------
+EQ_plots  : Batch plot multiple earthquake records (TH + RS pairs).
+EQ_plot   : Single 3x2 grid plot of acceleration TH and RS for 3 directions.
+RS_plot   : Three-panel acceleration/velocity/displacement response spectra.
 """
 from __future__ import annotations
-
-"""
-These are plotting functions for seismic engineering. The data needs to 
-be generated elsewhere, for example from eqsigs.
-
-"""
 
 from collections.abc import Sequence, Iterator
 from typing import TypeVar, Any, overload, Literal
