@@ -379,29 +379,34 @@ def get_table_4_2(phi):
 
 
 # Table 4-1: net pressure coefficients for an enclosed building envelope
-# without dominant openings.  Each value is a (zones, Cp) tuple.
+# without dominant openings.  Keyed by (condition, zone) -> Cp.
 table_4_1_dict = {
     'wall': {
-        'negative_edge':      ('A', -1.4),
-        'negative_elsewhere': ('B', -1.0),
-        'positive':           ('A & B', 1.1),
+        ('negative_edge', 'A'):      -1.4,
+        ('negative_elsewhere', 'B'): -1.0,
+        ('positive', 'A'):           1.1,
+        ('positive', 'B'):           1.1,
     },
     'flat_roof': {
-        'negative_corner':    ('C', -2.2),
-        'negative_edge':      ('D', -1.6),
-        'negative_elsewhere': ('E', -1.0),
-        'positive':           ('C, D, E', 0.3),
+        ('negative_corner', 'C'):    -2.2,
+        ('negative_edge', 'D'):      -1.6,
+        ('negative_elsewhere', 'E'): -1.0,
+        ('positive', 'C'):           0.3,
+        ('positive', 'D'):           0.3,
+        ('positive', 'E'):           0.3,
     },
     'pitch_roof': {
-        'negative_corner':    ('C', -1.4),
-        'negative_edge':      ('D', -1.4),
-        'negative_elsewhere': ('E', -1.0),
-        'positive':           ('C, D, E', 1.1),
+        ('negative_corner', 'C'):    -1.4,
+        ('negative_edge', 'D'):      -1.4,
+        ('negative_elsewhere', 'E'): -1.0,
+        ('positive', 'C'):           1.1,
+        ('positive', 'D'):           1.1,
+        ('positive', 'E'):           1.1,
     },
 }
 
 
-def get_table_4_1(case: str, condition: str) -> float:
+def get_table_4_1(case: str, condition: str, zone: str) -> float:
     """Net pressure coefficient Cp for an enclosed building envelope
     without dominant openings (Table 4-1).
 
@@ -409,25 +414,26 @@ def get_table_4_1(case: str, condition: str) -> float:
         case (str): 'wall', 'flat roof', or 'pitch roof' (case-insensitive).
         condition (str): 'negative edge', 'negative corner',
             'negative elsewhere', or 'positive' (case-insensitive).
+        zone (str): zone letter 'A', 'B', 'C', 'D', or 'E' (case-insensitive).
 
     Returns:
         float: net pressure coefficient Cp.
 
     Notes:
-        - The applicable zones for each (case, condition) are stored in
-          ``table_4_1_dict`` (they define the tributary area for the size
-          factor).
+        - Positive pressure applies to every zone of the case (Table 4-1);
+          each zone is listed explicitly in ``table_4_1_dict``.
         - Linear interpolation is allowed for roof pitch between 30 and
           60 degrees (Code Table 4-1 note (e)); this function returns the
           two bounding cases ('flat roof' < 30 deg, 'pitch roof' > 60 deg)
           only.
 
     Raises:
-        KeyError: if ``case`` or ``condition`` is not recognised.
+        KeyError: if ``case``, ``condition``, or ``zone`` is not recognised.
     """
     case = case.strip().lower().replace(' ', '_')
     condition = condition.strip().lower().replace(' ', '_')
-    return table_4_1_dict[case][condition][1]
+    zone = zone.strip().upper()
+    return table_4_1_dict[case][(condition, zone)]
 
 
 S_theta_dict = {

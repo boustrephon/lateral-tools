@@ -101,32 +101,39 @@ def test_freestanding_wall_pressure_raises():
 
 
 def test_get_table_4_1_wall():
-    assert get_table_4_1('wall', 'negative edge') == -1.4
-    assert get_table_4_1('wall', 'negative elsewhere') == -1.0
-    assert get_table_4_1('wall', 'positive') == 1.1
+    assert get_table_4_1('wall', 'negative edge', 'A') == -1.4
+    assert get_table_4_1('wall', 'negative elsewhere', 'B') == -1.0
+    assert get_table_4_1('wall', 'positive', 'A') == 1.1
+    assert get_table_4_1('wall', 'positive', 'B') == 1.1
 
 
 def test_get_table_4_1_flat_roof():
-    assert get_table_4_1('flat roof', 'negative corner') == -2.2
-    assert get_table_4_1('flat roof', 'negative edge') == -1.6
-    assert get_table_4_1('flat roof', 'negative elsewhere') == -1.0
-    assert get_table_4_1('flat roof', 'positive') == 0.3
+    assert get_table_4_1('flat roof', 'negative corner', 'C') == -2.2
+    assert get_table_4_1('flat roof', 'negative edge', 'D') == -1.6
+    assert get_table_4_1('flat roof', 'negative elsewhere', 'E') == -1.0
+    assert get_table_4_1('flat roof', 'positive', 'C') == 0.3
+    assert get_table_4_1('flat roof', 'positive', 'D') == 0.3
+    assert get_table_4_1('flat roof', 'positive', 'E') == 0.3
 
 
 def test_get_table_4_1_pitch_roof():
-    assert get_table_4_1('pitch roof', 'negative corner') == -1.4
-    assert get_table_4_1('pitch roof', 'negative edge') == -1.4
-    assert get_table_4_1('pitch roof', 'negative elsewhere') == -1.0
-    assert get_table_4_1('pitch roof', 'positive') == 1.1
+    assert get_table_4_1('pitch roof', 'negative corner', 'C') == -1.4
+    assert get_table_4_1('pitch roof', 'negative edge', 'D') == -1.4
+    assert get_table_4_1('pitch roof', 'negative elsewhere', 'E') == -1.0
+    assert get_table_4_1('pitch roof', 'positive', 'C') == 1.1
+    assert get_table_4_1('pitch roof', 'positive', 'D') == 1.1
+    assert get_table_4_1('pitch roof', 'positive', 'E') == 1.1
 
 
 def test_get_table_4_1_case_insensitive():
-    assert get_table_4_1('Wall', 'Negative Edge') == -1.4
-    assert get_table_4_1('PITCH ROOF', 'POSITIVE') == 1.1
+    assert get_table_4_1('Wall', 'Negative Edge', 'a') == -1.4
+    assert get_table_4_1('PITCH ROOF', 'POSITIVE', 'e') == 1.1
 
 
 def test_get_table_4_1_raises():
     with pytest.raises(KeyError):
-        get_table_4_1('wall', 'negative corner')
+        get_table_4_1('wall', 'negative corner', 'C')
     with pytest.raises(KeyError):
-        get_table_4_1('roof', 'positive')
+        get_table_4_1('roof', 'positive', 'C')
+    with pytest.raises(KeyError):
+        get_table_4_1('wall', 'positive', 'C')
