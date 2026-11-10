@@ -11,6 +11,7 @@ from lateral_tools.codes.HKWind2019 import (
     get_Q_z,
     get_S_q,
     get_Ss,
+    get_table_4_1,
     get_table_4_2,
 )
 
@@ -97,3 +98,35 @@ def test_freestanding_wall_pressure_phi_08():
 def test_freestanding_wall_pressure_raises():
     with pytest.raises(ValueError):
         freestanding_wall_pressure(0.5, 7.0, 0.0)
+
+
+def test_get_table_4_1_wall():
+    assert get_table_4_1('wall', 'negative edge') == -1.4
+    assert get_table_4_1('wall', 'negative elsewhere') == -1.0
+    assert get_table_4_1('wall', 'positive') == 1.1
+
+
+def test_get_table_4_1_flat_roof():
+    assert get_table_4_1('flat roof', 'negative corner') == -2.2
+    assert get_table_4_1('flat roof', 'negative edge') == -1.6
+    assert get_table_4_1('flat roof', 'negative elsewhere') == -1.0
+    assert get_table_4_1('flat roof', 'positive') == 0.3
+
+
+def test_get_table_4_1_pitch_roof():
+    assert get_table_4_1('pitch roof', 'negative corner') == -1.4
+    assert get_table_4_1('pitch roof', 'negative edge') == -1.4
+    assert get_table_4_1('pitch roof', 'negative elsewhere') == -1.0
+    assert get_table_4_1('pitch roof', 'positive') == 1.1
+
+
+def test_get_table_4_1_case_insensitive():
+    assert get_table_4_1('Wall', 'Negative Edge') == -1.4
+    assert get_table_4_1('PITCH ROOF', 'POSITIVE') == 1.1
+
+
+def test_get_table_4_1_raises():
+    with pytest.raises(KeyError):
+        get_table_4_1('wall', 'negative corner')
+    with pytest.raises(KeyError):
+        get_table_4_1('roof', 'positive')

@@ -378,6 +378,58 @@ def get_table_4_2(phi):
     return list_interp(phi, phis, C_ps, extend=True)
 
 
+# Table 4-1: net pressure coefficients for an enclosed building envelope
+# without dominant openings.  Each value is a (zones, Cp) tuple.
+table_4_1_dict = {
+    'wall': {
+        'negative_edge':      ('A', -1.4),
+        'negative_elsewhere': ('B', -1.0),
+        'positive':           ('A & B', 1.1),
+    },
+    'flat_roof': {
+        'negative_corner':    ('C', -2.2),
+        'negative_edge':      ('D', -1.6),
+        'negative_elsewhere': ('E', -1.0),
+        'positive':           ('C, D, E', 0.3),
+    },
+    'pitch_roof': {
+        'negative_corner':    ('C', -1.4),
+        'negative_edge':      ('D', -1.4),
+        'negative_elsewhere': ('E', -1.0),
+        'positive':           ('C, D, E', 1.1),
+    },
+}
+
+
+def get_table_4_1(case: str, condition: str) -> float:
+    """Net pressure coefficient Cp for an enclosed building envelope
+    without dominant openings (Table 4-1).
+
+    Args:
+        case (str): 'wall', 'flat roof', or 'pitch roof' (case-insensitive).
+        condition (str): 'negative edge', 'negative corner',
+            'negative elsewhere', or 'positive' (case-insensitive).
+
+    Returns:
+        float: net pressure coefficient Cp.
+
+    Notes:
+        - The applicable zones for each (case, condition) are stored in
+          ``table_4_1_dict`` (they define the tributary area for the size
+          factor).
+        - Linear interpolation is allowed for roof pitch between 30 and
+          60 degrees (Code Table 4-1 note (e)); this function returns the
+          two bounding cases ('flat roof' < 30 deg, 'pitch roof' > 60 deg)
+          only.
+
+    Raises:
+        KeyError: if ``case`` or ``condition`` is not recognised.
+    """
+    case = case.strip().lower().replace(' ', '_')
+    condition = condition.strip().lower().replace(' ', '_')
+    return table_4_1_dict[case][condition][1]
+
+
 S_theta_dict = {
     'N': 0.82,
     'NE': 0.84,
