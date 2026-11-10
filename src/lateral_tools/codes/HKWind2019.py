@@ -372,8 +372,8 @@ table_B3_1_dict = {
 
 
 def get_table_4_2(phi):
-    """"""
-    phis = (0.01, 0.1, 0.2, 0.3, 0.4, 0.5, 0.8, 0.9, 1.0)
+    """Net pressure coefficient Cp for open frameworks (Table 4-2)."""
+    phis = (0.01, 0.1, 0.2, 0.3, 0.5, 0.8, 0.9, 1.0)
     C_ps = (2.0, 1.8, 1.7, 1.6, 1.5, 1.5, 1.6, 2.0)
     return list_interp(phi, phis, C_ps, extend=True)
 
@@ -639,16 +639,42 @@ def approx_fundamental_frequency(H_e:float) -> float:
         return 46 / H_e
 
 
-def freestanding_wall_pressure(phi, l_h, lc_h):
-    """
-    TO DO - review - what is l_h??
+def freestanding_wall_pressure(phi: float, l_h: float, lc_h: float = 0.0) -> dict:
+    """Net pressure coefficients Cp for free-standing walls (Table B3-1).
+
+    Args:
+        phi (float): solidity ratio (0.8 to 1.0; use Table 4-2 if < 0.8).
+        l_h (float): wall length / height ratio.
+        lc_h (float, optional): return-corner length / height ratio
+            (0 = no return corners, >= 1 = full return corners). Defaults to 0.
+
+    Returns:
+        dict: zone pressure coefficients {'A', 'B', 'C', 'D'}. Zone 'D' is
+        None for walls with l/h <= 3 (no zone D).
+
+    Raises:
+        ValueError: if phi < 0.8 (use Table 4-2 for open frameworks).
     """
     if phi < 0.8:
-        raise ValueError('')
-    if lc_h >= 1.0:
-        Cp_dict = {'A': 2.1, 'B': 1.8, 'C':1.4, 'D': 1.2}
-        return Cp_dict
-    return None
+        raise ValueError('phi < 0.8: use Table 4-2 for open frameworks')
+
+    lh_keys = (3, 5, 10)
+    full_return = {'A': 2.1, 'B': 1.8, 'C': 1.4, 'D': 1.2}
+
+    no_return = {z: list_interp(l_h, list(lh_keys),
+                                [table_B3_1_dict[k][z] for k in lh_keys],
+                                extend=True) for z in 'ABCD'}
+
+    f_ret = max(0.0, min(1.0, lc_h))  # interpolate return-corner length
+    cp1 = {z: (no_return[z] + (full_return[z] - no_return[z]) * f_ret
+               if no_return[z] is not None else None) for z in 'ABCD'}
+
+    if phi >= 1.0:
+        return cp1
+    cp08 = {'A': 1.2, 'B': 1.2, 'C': 1.2, 'D': 1.2}
+    f = (phi - 0.8) / 0.2
+    return {z: (cp08[z] + (cp1[z] - cp08[z]) * f
+                if cp1[z] is not None else None) for z in 'ABCD'}
 
 
 def cantilever_deflection(w, L, E, Ix):
