@@ -337,37 +337,3 @@ if __name__ == "__main__":
     print(f"Dead + Wind only:     1.4G + 1.4W = 1.4G + {1.4 * governing['wind_load_kN']:.0f} kN")
     print(f"Dead + Live + Wind:   1.2G + 1.2Q + 1.2W = 1.2G + 1.2Q + {1.2 * governing['wind_load_kN']:.0f} kN")
     print(f"Note: Load factors from BS 8110, not from wind code")
-
-
-'''
-============================================================
-HONG KONG WIND CODE 1983 (1993 REPRINT)
-============================================================
-
-Building dimensions:
-  Height: 32.0 m
-  Width (normal to wind): 65.0 m
-  Depth (parallel to wind): 136.0 m
-
-Step 1: Force coefficient C_f
-  Height/Breadth = 0.49 → C_h = 0.95
-  Depth/Breadth = 2.09 → C_s = 1.12
-  Frontal area = 2080 m² → R_A = 0.94
-  C_f = 1.000
-
-Step 2: Sum of q_z × A_z
-  Total Σ(q_z×A_z) = 7941 kN
-
-Step 3: Total wind force
-  F = C_f × Σ(q_z×A_z) = 1.000 × 7941 = 7941 kN
-
-============================================================
-CONCLUSION
-============================================================
-
-Governing wind load: 7941 kN
-(Wind acting on the 65m wide face)
-
-Stability requirement (Section 7): Resistance ≥ 11912 kN
-
-```

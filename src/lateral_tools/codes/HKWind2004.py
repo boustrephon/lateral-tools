@@ -396,7 +396,7 @@ def full_wind_calcs(storey_heights,
             print(f'storey_widths_x: {dd["storey_widths_x"]}')
             print(f'trib_areas_x: {dd["trib_areas_x"]}')
             print(f'storey_forces_x: {dd["storey_forces_x"]}')
-            print(f'storey_shears_x: {dd['storey_shears_x']}')
+            print(f'storey_shears_x: {dd["storey_shears_x"]}')
             print(f'storey_moments_yy: {dd["storey_moments_yy"]}')
             print(f'Base Myy: {max_storey_moment_yy}')
             print(f'storey_widths_y: {dd["storey_widths_y"]}')

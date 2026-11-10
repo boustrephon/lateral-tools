@@ -64,7 +64,7 @@ def ASC_record_pair_SI_scaling(
     """
     x, y = record
     if isinstance(units, str):
-        y_scaled = scale_to_SI_units(y, units)
+        y_scaled = y * scale_to_SI_units(units)
     elif isinstance(units, (float, int)):
         y_scaled = y * units
     return x, y_scaled
@@ -326,7 +326,7 @@ def ASC_import2_ss(asc_files, folder=r'./'):
         event = asc_list[0].strip()
         station = asc_list[1].strip()
         ev_st = f'{event}_{station}'
-        direction = station = asc_list[-1].strip()
+        direction = asc_list[-1].strip()
 
         infile = path_join(folder, asc)
         # outfile = path_join(folder, asc.replace('.asc', '.csv'))
@@ -352,7 +352,7 @@ def ASC_import2_ss(asc_files, folder=r'./'):
                         pass
                     else:
                         samp_int = asc_dict.get('SAMPLING_INTERVAL_S', '').strip()
-                        dt = float(samp_int)
+                        dt = float(samp_int) if len(samp_int) > 0 else 0.0
                         if len(samp_int) > 0:
                             th.append((t, line.strip()))
                             t = round(t + dt, len(samp_int))
