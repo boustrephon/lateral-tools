@@ -88,9 +88,14 @@ def import_storey_data(file_path: str|None, delimiter:str =','):
     # storey_headers = data[0] if not all([isinstance(as_float(x), float)
     #                                         for x in (b, c, d)]) else []
 
-    storey_data = [[a, float(b), float(c), float(d)]
-                for a,b,c,d in data if all([isinstance(as_float(x), float)
-                                            for x in (b, c, d)])]
+    storey_data = []
+    for row in data:
+        if len(row) != 4:
+            continue
+        a, b, c, d = row
+        b_num, c_num, d_num = (as_float(x) for x in (b, c, d))
+        if all(isinstance(x, float) for x in (b_num, c_num, d_num)):
+            storey_data.append([a, b_num, c_num, d_num])
 
     return storey_data
 

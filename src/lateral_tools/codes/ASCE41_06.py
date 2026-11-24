@@ -21,6 +21,7 @@ struct_types_dict = {
 'W1A': 'Multistory Multi-Unit Residential Wood Frame',
 'W2': 'Commercial and Industrial Wood Frame',
 'S1': 'Steel MRF',
+'S1A': 'Steel MRF Flexible Diaphragm',
 'S2': 'Steel Braced Frame',
 'S2A': 'Steel Braced Frame Flexible Diaphragm',
 'S3': 'Steel Light Frame',

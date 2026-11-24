@@ -24,16 +24,24 @@ def get_V_sit(V_s, M_d, M_zcat, M_s = 1, M_h = 1):
     return V_sit
 
 
-def get_V_des(V_sit:float, importance:float)-> float:
+def get_V_des(V_sit:float, importance:float|None = None, I:float|None = None)-> float:
     """Design force for given site wind speed and project importance
 
     Args:
-        V_sit (float): _description_
-        importance (float): _description_
+        V_sit (float): Site wind speed.
+        importance (float, optional): Project importance factor.
+            Retained for migrated callers.
+        I (float, optional): Deprecated alias for ``importance``.
 
     Returns:
-        float: _description_
+        float: Design wind speed.
     """
+    if importance is None:
+        importance = I
+    if importance is None:
+        raise TypeError(
+            "get_V_des() missing required argument: 'importance' (or its alias 'I')"
+        )
     V_des = importance * V_sit
     return V_des
 
