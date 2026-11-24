@@ -6,6 +6,9 @@ Terrain type 2: Mz,cat = 1.0 + 7.0 (z/10)**0.2
 Terrain type 3: Mz,cat = 1.0 + 6.0 (z/10)**0.07
 Terrain type 4: Mz,cat = 1.0 + 5.0 (z/10)**0.3
 """
+from __future__ import annotations
+
+from typing import Any
 
 
 def get_V_sit(V_s, M_d, M_zcat, M_s = 1, M_h = 1):
@@ -24,23 +27,38 @@ def get_V_sit(V_s, M_d, M_zcat, M_s = 1, M_h = 1):
     return V_sit
 
 
-def get_V_des(V_sit:float, importance:float|None = None, I:float|None = None)-> float:
+def get_V_des(
+    V_sit: float,
+    importance: float | None = None,
+    importance_factor: float | None = None,
+    **kwargs: Any,
+) -> float:
     """Design force for given site wind speed and project importance
 
     Args:
         V_sit (float): Site wind speed.
         importance (float, optional): Project importance factor.
-            Retained for migrated callers.
-        I (float, optional): Deprecated alias for ``importance``.
+        importance_factor (float, optional): Deprecated alias for
+            ``importance``.
+        **kwargs: Legacy ``I`` keyword alias for ``importance``.
 
     Returns:
         float: Design wind speed.
     """
+    legacy_importance = kwargs.pop("I", None)
+    if kwargs:
+        unexpected = ", ".join(sorted(kwargs))
+        raise TypeError(
+            f"get_V_des() got an unexpected keyword argument: {unexpected}"
+        )
     if importance is None:
-        importance = I
+        importance = importance_factor
+    if importance is None:
+        importance = legacy_importance
     if importance is None:
         raise TypeError(
-            "get_V_des() missing required argument: 'importance' (or its alias 'I')"
+            "get_V_des() missing required argument: 'importance' "
+            "(or its aliases 'importance_factor' and 'I')"
         )
     V_des = importance * V_sit
     return V_des
