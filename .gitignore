@@ -128,10 +128,7 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# 
-.xlsx
-.docx
-.html
-* ss.ipynb
+# macOS
+.DS_Store
 
 local/

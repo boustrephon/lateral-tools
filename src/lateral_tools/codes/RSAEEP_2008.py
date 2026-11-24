@@ -334,11 +334,6 @@ def write_GWA_spectra(TS_ranges, file_path=None, debug=False):
         'UNIT_DATA.1	ANGLE	°	57.2957795',
         )
 
-
-    # default_folder = r'C:\Users\andrew.mole\OneDrive - Arup\Projects\Wynn Macau Event
-    # Center\GSA Model'
-    # file_name = 'spectra.gwa'
-    # file_path = path_join(default_folder, file_name)
     if file_path is None:
         file_path = 'spectra.gwa'
 
