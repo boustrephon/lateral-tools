@@ -72,6 +72,16 @@ from lateral_tools.plotting.spectra import plot_seismic_spectrum
 pytest
 ```
 
+## Development
+
+The repository includes a `.git-blame-ignore-revs` file listing commits that
+only changed line endings. GitHub honours it automatically; to make local
+`git blame` do the same, run once:
+
+```bash
+git config blame.ignoreRevsFile .git-blame-ignore-revs
+```
+
 ## Notes on external libraries
 
 The library [`obspy`](https://pypi.org/project/obspy/) contains readers for
