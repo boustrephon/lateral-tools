@@ -1,13 +1,13 @@
 """
 A library for carrying out calculations to ASCE7-16
 
-"This Standard provides requirements for 
-general structural design and includes 
-means for determining dead, live, soil, 
-flood, wind, snow, rain, atmospheric 
-ice, and earthquake loads, as well as 
-their combinations, which are suitable 
-for inclusion in building codes and 
+"This Standard provides requirements for
+general structural design and includes
+means for determining dead, live, soil,
+flood, wind, snow, rain, atmospheric
+ice, and earthquake loads, as well as
+their combinations, which are suitable
+for inclusion in building codes and
 other documents."
 
 Previous editions are:
@@ -20,13 +20,14 @@ Previous editions are:
 * ASCE 7-88
 """
 
-from math import pi, sin, cos, tan, acos, asin, atan, atan2, log, log10
 
-import numpy as np
 # from itertools import accumulate
 import doctest
+from os.path import abspath, dirname
+from os.path import join as path_join
 from sys import path as sys_path
-from os.path import abspath, join as path_join, dirname
+
+import numpy as np
 
 # Add the parent directory of 'pySeismic' to sys.path
 sys_path.append(abspath(path_join(dirname(__file__), '..', '..')))
@@ -56,15 +57,18 @@ F_v_dict = {'A': (0.8,0.8,0.8,0.8,0.8,0.8),
            'F': (None,None,None,None,None,None)}
 
 
-def site_coeffs(site_class:str, S_s:float, S_1:float, 
+def site_coeffs(site_class:str, S_s:float, S_1:float,
                 debug:bool=False)->tuple[float|None,float|None]:
-    """Returns F_a, F_v when provided with 
+    """Returns F_a, F_v when provided with
     site class (A-F) and S_s and S_1 values (Tables 11.4-1 & 2, ASCE 7-16)
     """
     F_a_list = F_a_dict[site_class]
     F_v_list = F_v_dict[site_class]
     if debug:
-        print(f'site_class = {site_class}; S_s = {S_s}; S_1 = {S_1}; F_a = {F_a_list}; F_v = {F_v_list}')
+        print(
+            f'site_class = {site_class}; S_s = {S_s}; S_1 = {S_1}; '
+            f'F_a = {F_a_list}; F_v = {F_v_list}'
+        )
     return list_interp(S_s, F_a_headers, F_a_list), list_interp(S_1, F_v_headers, F_v_list)
 
 
@@ -133,11 +137,11 @@ def site_accels_D(site_class:str, S_s:float, S_1:float, debug:bool=False)->tuple
         print(f'S_s = {S_s}; S_1 = {S_1}')
         print(f'S_DS = {S_DS}; S_D1 = {S_D1}')
     return S_DS, S_D1
-    
+
 
 def seismic_design_category_get(S_s, S_1, site_class, risk_category, debug=False):
-    """Returns the ASCE7-10 seismic design category based on the 
-    site spectral accelerations, site class and risk category 
+    """Returns the ASCE7-10 seismic design category based on the
+    site spectral accelerations, site class and risk category
     Table 11.6-1 - Short Period Response
     Table 11.6-2 - 1-sec Period Response
     >>> seismic_design_category_get(0.75, 0.2, 'D', 'II')
@@ -151,33 +155,36 @@ def seismic_design_category_get(S_s, S_1, site_class, risk_category, debug=False
 
     accel_limits_S = [0.0, 0.167, 0.33, 0.50]
     accel_limits_1 = [0.0, 0.067, 0.133, 0.20]
-    
+
     if risk_category == 'IV':
         design_cat_list = ['A', 'C', 'D', 'D']
     else:
         design_cat_list = ['A', 'B', 'C', 'D']
-    
+
     seismic_design_category_S = 'A'
     for S_lim, S_val in zip(accel_limits_S, design_cat_list):
         if S_DS >= S_lim:
             seismic_design_category_S = S_val
-    
+
     seismic_design_category_1 = 'A'
     for S_lim, S_val in zip(accel_limits_1, design_cat_list):
         if S_D1 >= S_lim:
             seismic_design_category_1 = S_val
-    
+
     seismic_design_category = max(seismic_design_category_S, seismic_design_category_1)
 
     if debug:
-        print(f'SDC = max({seismic_design_category_S}, {seismic_design_category_1}) = {seismic_design_category}')
+        print(
+            f'SDC = max({seismic_design_category_S}, {seismic_design_category_1})'
+            f' = {seismic_design_category}'
+        )
 
     if risk_category in ['I', 'II', 'III'] and S_1 >= 0.75:
         seismic_design_category = 'E'
-    
+
     if risk_category == 'IV' and S_1 >= 0.75:
         seismic_design_category = 'F'
-    
+
     return seismic_design_category
 
 def design_response_spectrum(

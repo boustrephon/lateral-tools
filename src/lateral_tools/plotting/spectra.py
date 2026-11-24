@@ -14,32 +14,23 @@ _resolve_spectrum       : Dispatcher that calls the correct code-specific builde
 """
 from __future__ import annotations
 
-from collections.abc import Sequence, Iterator
-from typing import TypeVar, Any, overload, Literal
-
-
-from typing import Union, List, Tuple, Dict, Any
-from math import log, pi, tau, sin, cos, tan, acos, asin, atan, atan2, log, log10  # noqa: F401, F811
-import math
+from collections.abc import Sequence
+from math import acos, asin, atan, atan2, cos, log, log10, pi, sin, tan, tau  # noqa: F401, F811
+from os.path import abspath, dirname
+from os.path import join as path_join
 from sys import path as sys_path
-from os.path import abspath, join as path_join, dirname
+from typing import Any, Dict, List, Literal, Tuple, TypeVar, Union
 
 # from itertools import accumulate
-
 import matplotlib.pyplot as plt
-import matplotlib.lines as lines
-from matplotlib.figure import Figure
-
 import numpy as np
+from matplotlib.figure import Figure
+from scipy.interpolate import Akima1DInterpolator, PchipInterpolator, make_interp_spline
 
-from scipy.interpolate import make_interp_spline, Akima1DInterpolator, PchipInterpolator
-
-from matplotlib.ticker import EngFormatter
+from .tripartite import reorganise_plot_data
 
 sys_path.append(abspath(path_join(dirname(__file__), '..', '..')))
 
-from lateral_tools.analysis import storey_force_distribution, \
-    storey_shear_moment, shear_coords
 
 
 # Type aliases to describe the nested data structures
@@ -52,8 +43,8 @@ PointCollection = Sequence[Sequence[Point]]   # curves given as (T, Sv) pairs
 T = TypeVar('T')
 
 List_of_lists = Union[
-    List[List[float]], 
-    List[Tuple[float]], 
+    List[List[float]],
+    List[Tuple[float]],
     Tuple[List[float]],
                             ]
 List_of_list_of_lists = Union[
@@ -65,8 +56,12 @@ List_of_list_of_list_of_lists = Union[
     Tuple[List_of_list_of_lists],
                             ]
 
-# Union[List[List[List[float]]], List[List[List[float]]], List[List[Tuple[float, float]]], List[Tuple[Tuple[float, float], ...]], Tuple[List[Tuple[float, float]]], Tuple[Tuple[Tuple[float, float], ...]]]
-# Union[List[List[List[float]]], List[List[List[float]]], List[List[Tuple[float, float]]], List[Tuple[Tuple[float, float], ...]], Tuple[List[Tuple[float, float]]], Tuple[Tuple[Tuple[float, float], ...]]]
+# Union[List[List[List[float]]], List[List[List[float]]], List[List[Tuple[float, float]]],
+# List[Tuple[Tuple[float, float], ...]], Tuple[List[Tuple[float, float]]],
+# Tuple[Tuple[Tuple[float, float], ...]]]
+# Union[List[List[List[float]]], List[List[List[float]]], List[List[Tuple[float, float]]],
+# List[Tuple[Tuple[float, float], ...]], Tuple[List[Tuple[float, float]]],
+# Tuple[Tuple[Tuple[float, float], ...]]]
 
 
 
@@ -83,28 +78,28 @@ def response_spectrum_plots(
         T_ranges: Union[List,
             List_of_lists,
             List_of_list_of_lists
-        ], 
+        ],
         PS_a_ranges: Union[List_of_list_of_lists,
-                           List_of_list_of_list_of_lists], 
-        series_names: List[str], 
-        plot_pts: List_of_lists=[], 
-        debug: bool =False, 
+                           List_of_list_of_list_of_lists],
+        series_names: List[str],
+        plot_pts: List_of_lists=[],
+        debug: bool =False,
         **kwargs: Dict[str, Any]
                             ):
-    """Generates a set of pseudo response spectrum plots based on 
+    """Generates a set of pseudo response spectrum plots based on
     spectral acceleration (units of g)
 
     Args:
-        T_ranges (list[float]: time values - it is assumed that the 
+        T_ranges (list[float]: time values - it is assumed that the
             range is the same for all plots. If an empty list is passed
             to the function, it assumes that all the data is in the
             PS_a_ranges function as T,S pairs.
-        PS_a_ranges: pseudo spectral acceleration (assumed to be 
-            in units of g). If Period data is in T_ranges, then data 
-            should be list of list of lists. Otherwise each data point 
+        PS_a_ranges: pseudo spectral acceleration (assumed to be
+            in units of g). If Period data is in T_ranges, then data
+            should be list of list of lists. Otherwise each data point
             should be a (T,S) pair.
         series_names (list[str]): one title for each S_a_range
-        plot_pts (list[tuple,list]): (T, S_v) points for plotting 
+        plot_pts (list[tuple,list]): (T, S_v) points for plotting
         kwargs: parameters for passing through to? Nowhere at present
     """
     figsize = kwargs.get('figsize', (10,15))
@@ -117,13 +112,13 @@ def response_spectrum_plots(
         print(f'figsize = {figsize}')
         print(f'suptitle = {suptitle}')
         print('Number of series_names = len(series_names)\n')
-    
+
     # Standardise period and check that numbers align
     if T_ranges == []:
         if debug:
             print('No period data provided')
         if isinstance(
-            PS_a_ranges, 
+            PS_a_ranges,
             List_of_list_of_list_of_lists
             ):
             T_ranges, PS_a_ranges = reorganise_plot_data(PS_a_ranges)
@@ -145,7 +140,7 @@ def response_spectrum_plots(
         pass
     else:
         pass
-    
+
     # DEBUG: print shapes of input collections
     if debug:
         T_ranges_lens = [len(T_range) for T_range in T_ranges]
@@ -154,12 +149,12 @@ def response_spectrum_plots(
         print(f'PS_a_ranges shape: {len(PS_a_ranges)} x {PS_a_ranges_lens}')
 
     # CHECK: check that shapes match
-    if not (all(len(PS_a_range) == len(T_range) 
+    if not (all(len(PS_a_range) == len(T_range)
                 for PS_a_range, T_range in zip(PS_a_ranges, T_ranges))):
         T_ranges_len = [len(T_range) for T_range in T_ranges]
         PS_a_ranges_len = [len(PS_a_range) for PS_a_range in PS_a_ranges]
         err_msg = ('Lengths of curves do not match: ' +
-                   f'\n\tlen(T_ranges) = {T_ranges_len} ' + 
+                   f'\n\tlen(T_ranges) = {T_ranges_len} ' +
                    f'\n\tlen(PS_a_ranges) = {PS_a_ranges_len}\n')
         raise ValueError(err_msg)
 
@@ -178,10 +173,10 @@ def response_spectrum_plots(
         PS_a_ranges = A_list
         # T_ranges = [T for T in T_ranges if T <= T_max]
         # T_num = len(T_ranges)
-        # PS_a_ranges = [[2 * pi / T * S_v / 9.81 
-        #                 for T, S_v in zip(T_ranges, S_v_range)] 
+        # PS_a_ranges = [[2 * pi / T * S_v / 9.81
+        #                 for T, S_v in zip(T_ranges, S_v_range)]
         #                 for S_v_range in S_v_ranges]
-        # PS_a_ranges = [PS_a_range[:T_num] 
+        # PS_a_ranges = [PS_a_range[:T_num]
         #                for PS_a_range in PS_a_ranges]
 
         if debug:
@@ -190,16 +185,16 @@ def response_spectrum_plots(
             PS_a_ranges_lens = [len(PS_a_range) for PS_a_range in PS_a_ranges]
             print(f'  PS_a_ranges shape: {len(PS_a_ranges)} x {PS_a_ranges_lens}')
             print()
-    
-    # 
-    S_v_ranges = [[9.81 * 0.5 / pi * T * PS_a 
-                   for T, PS_a in zip(T_range, PS_a_range)] 
+
+    #
+    S_v_ranges = [[9.81 * 0.5 / pi * T * PS_a
+                   for T, PS_a in zip(T_range, PS_a_range)]
                    for T_range, PS_a_range in zip(T_ranges, PS_a_ranges)]
-    # PS_a_ranges = [[2 * pi / T * S_v / 9.81 
-    #                 for T, S_v in zip(T_ranges, S_v_range)] 
+    # PS_a_ranges = [[2 * pi / T * S_v / 9.81
+    #                 for T, S_v in zip(T_ranges, S_v_range)]
     #                 for S_v_range in S_v_ranges]
-    PS_d_ranges = [[0.5 / pi * T * S_v 
-                    for T, S_v in zip(T_range, S_v_range)] 
+    PS_d_ranges = [[0.5 / pi * T * S_v
+                    for T, S_v in zip(T_range, S_v_range)]
                     for T_range, S_v_range in zip(T_ranges, S_v_ranges)]
 
     # DEBUG
@@ -217,23 +212,23 @@ def response_spectrum_plots(
         print('\n -- starting to plot --')
 
     # Plotting
-    [ax1.plot(T_range, PS_a_range) 
+    [ax1.plot(T_range, PS_a_range)
      for T_range, PS_a_range in zip(T_ranges, PS_a_ranges)]
     ax1.grid(True)
     ax1.legend(series_names)
     ax1.set_ylabel('Acceleration (g)')
     ax1.set_xlim((0,T_max))
     ax1.set_ylim((0,None))
-        
-    [ax2.plot(T_range, S_v_range) 
+
+    [ax2.plot(T_range, S_v_range)
      for T_range, S_v_range in zip(T_ranges, S_v_ranges)]
     ax2.grid(True)
     ax2.legend(series_names)
     ax2.set_ylabel('Velocity (m/s)')
     ax2.set_xlim((0,T_max))
     ax2.set_ylim((0,None))
-    
-    [ax3.plot(T_range, PS_d_range) 
+
+    [ax3.plot(T_range, PS_d_range)
      for T_range, PS_d_range in zip(T_ranges, PS_d_ranges)]
     ax3.grid(True)
     ax3.legend(series_names)
@@ -241,8 +236,8 @@ def response_spectrum_plots(
     ax3.set_ylabel('Displacement (m)')
     ax3.set_xlim((0,T_max))
     ax3.set_ylim((0,None))
-    
-    [ax4.plot(PS_d_range, PS_a_range) 
+
+    [ax4.plot(PS_d_range, PS_a_range)
      for PS_d_range, PS_a_range in zip(PS_d_ranges, PS_a_ranges)]
     ax4.grid(True)
     ax4.legend(series_names)
@@ -261,20 +256,20 @@ def response_spectrum_plots(
             PS_d = 0.5 / pi * T *  S_v  # in m
             ax3.plot(T, PS_d, marker = 'o')
             ax4.plot(PS_d, PS_a, marker = 'o')
-    
+
     return figs
 
 
-def smooth_interpolate(x_vector, y_vector, new_x_values=None, interpolators=None, 
+def smooth_interpolate(x_vector, y_vector, new_x_values=None, interpolators=None,
                       plot=False, log_x=True, log_y=True, npoints=200, plot_func=None, **kwargs):
     """
     Perform multiple types of spline interpolation with flexible plotting options.
-    
+
     This function provides a unified interface to compare different interpolation
     methods (Akima, PCHIP, cubic, quadratic) on datasets, with special support
     for response spectra applications. It handles both linear and logarithmic
     interpolation spaces and allows comparison of multiple interpolation techniques.
-    
+
     Parameters
     ----------
     x_vector : array-like
@@ -286,22 +281,22 @@ def smooth_interpolate(x_vector, y_vector, new_x_values=None, interpolators=None
         of points between the min and max of x_vector. Default is None.
     interpolators : list of str, optional
         List of interpolator names to use. If None, uses all available interpolators.
-        Available options: 
+        Available options:
         - 'Akima': Akima1DInterpolator - good balance of smoothness and conservation
-        - 'PCHIP': PchipInterpolator - shape-preserving, monotonic between points  
+        - 'PCHIP': PchipInterpolator - shape-preserving, monotonic between points
         - 'Cubic (k=3)': Cubic spline - smooth but may overshoot
         - 'Quadratic (k=2)': Quadratic spline - smoother than linear, less oscillatory than cubic
         - 'Linear (k=1)': Linear spline - pievewise linear with sharp corners
         Default is None (uses all interpolators).
     plot : bool, optional
-        If True, generates a comparison plot showing original data and all 
+        If True, generates a comparison plot showing original data and all
         interpolated curves. Default is False.
     log_x : bool, optional
         If True, performs interpolation in log-space for x-values. Recommended for
         response spectra where periods span multiple decades. Default is True.
     log_y : bool, optional
         If True, performs interpolation in log-space for y-values. Recommended for
-        response spectra where spectral accelerations span multiple decades. 
+        response spectra where spectral accelerations span multiple decades.
         Default is True.
     npoints : int, optional
         Number of points to generate for interpolation when new_x_values is None.
@@ -317,7 +312,7 @@ def smooth_interpolate(x_vector, y_vector, new_x_values=None, interpolators=None
         - 'xlim': Tuple for x-axis limits (e.g., (0.1, 10))
         - 'ylim': Tuple for y-axis limits (e.g., (0.01, 1))
         - Any other matplotlib.pyplot plotting parameters
-    
+
     Returns
     -------
     dict
@@ -326,13 +321,13 @@ def smooth_interpolate(x_vector, y_vector, new_x_values=None, interpolators=None
         where:
         - x_interp: Array of x-values used for interpolation (same for all methods)
         - y_interp: Array of interpolated y-values for each method
-    
+
     Raises
     ------
     ValueError
         If input arrays have incompatible shapes, contain invalid values for
         the chosen interpolation space, or if unknown interpolator names are specified.
-    
+
     Notes
     -----
     - For response spectra applications, use log_x=True and log_y=True (default)
@@ -342,14 +337,14 @@ def smooth_interpolate(x_vector, y_vector, new_x_values=None, interpolators=None
         - 'Akima': General purpose, good balance
         - 'PCHIP': Conservative, shape-preserving
         - 'Quadratic (k=2)': Smooth but less oscillatory than cubic
-    
+
     Examples
     --------
     >>> # Compare all interpolation methods
     >>> results = smooth_interpolate(periods, spectral_data, plot=True)
     >>> akima_x, akima_y = results['Akima']
     >>> pchip_x, pchip_y = results['PCHIP']
-    
+
     >>> # Compare only specific interpolators at target periods
     >>> target_periods = [0.5, 1.0, 1.5, 2.0, 2.5]
     >>> results = smooth_interpolate(
@@ -359,7 +354,7 @@ def smooth_interpolate(x_vector, y_vector, new_x_values=None, interpolators=None
     ...     plot=True,
     ...     title='Response Spectrum Interpolation Comparison'
     ... )
-    
+
     >>> # Linear space interpolation comparison
     >>> results = smooth_interpolate(
     ...     x_data, y_data,
@@ -370,12 +365,12 @@ def smooth_interpolate(x_vector, y_vector, new_x_values=None, interpolators=None
     ...     xlim=(0, 5),
     ...     ylim=(0, 10)
     ... )
-    
+
     >>> # Get interpolated values without plotting
     >>> results = smooth_interpolate(periods, spectral_data)
     >>> for method, (x_vals, y_vals) in results.items():
     ...     print(f"{method}: {len(y_vals)} interpolated values")
-    
+
     >>> # Semi-log interpolation (log x, linear y)
     >>> results = smooth_interpolate(
     ...     periods, spectral_data,
@@ -384,7 +379,7 @@ def smooth_interpolate(x_vector, y_vector, new_x_values=None, interpolators=None
     ...     interpolators=['Akima'],
     ...     plot=True
     ... )
-    
+
     See Also
     --------
     akima_interpolate : For single-method Akima interpolation with annotation options
@@ -392,17 +387,17 @@ def smooth_interpolate(x_vector, y_vector, new_x_values=None, interpolators=None
     scipy.interpolate.PchipInterpolator : Underlying PCHIP interpolator
     scipy.interpolate.make_interp_spline : Underlying spline interpolators
     """
-    
+
     # Your data
     x_vector = np.array(x_vector)
     y_vector = np.array(y_vector)
-    
+
     # Filter out non-positive values for log plotting
     if log_x:
         positive_mask = x_vector > 0
         x_vector = x_vector[positive_mask]
         y_vector = y_vector[positive_mask]
-    
+
     if log_y:
         positive_mask = y_vector > 0
         x_vector = x_vector[positive_mask]
@@ -424,7 +419,7 @@ def smooth_interpolate(x_vector, y_vector, new_x_values=None, interpolators=None
     else:
         interp_x_vector = x_vector
         interp_new_x = new_x_values
-        
+
     if log_y:
         interp_y_vector = np.log10(y_vector)
     else:
@@ -452,14 +447,14 @@ def smooth_interpolate(x_vector, y_vector, new_x_values=None, interpolators=None
         else:
             # Interpolate directly in linear space
             new_y_values = interp_func(interp_new_x)
-        
+
         results[name] = (new_x_values, new_y_values)
 
     # Optional plotting
     if plot:
         figsize = kwargs.get('figsize', (12, 8))
         plt.figure(figsize=figsize)
-        
+
         # Plot data points
         if plot_func is not None: # override plot function choice
             plot_func(x_vector, y_vector, 'ko', markersize=8, label='Data points', zorder=5)
@@ -498,16 +493,16 @@ def smooth_interpolate(x_vector, y_vector, new_x_values=None, interpolators=None
 
 
 
-def akima_interpolate(x_vector, y_vector, new_x_values=None, plot=False, 
+def akima_interpolate(x_vector, y_vector, new_x_values=None, plot=False,
                      log_x=True, log_y=True, npoints=500, plot_func=None,
                      annotate_points=None, annotation_style=None, **plot_kwargs):
     """
     Perform Akima interpolation on data points with optional plotting and annotations.
-    
+
     This function is particularly useful for response spectra interpolation where
     smooth curves in log-space are desired. It handles both linear and logarithmic
     interpolation spaces and provides flexible annotation options.
-    
+
     Parameters
     ----------
     x_vector : array-like
@@ -554,32 +549,32 @@ def akima_interpolate(x_vector, y_vector, new_x_values=None, plot=False,
         - 'title': Plot title string
         - 'xlim': Tuple for x-axis limits (e.g., (0.1, 10))
         - 'ylim': Tuple for y-axis limits (e.g., (0.01, 1))
-    
+
     Returns
     -------
     tuple
         (x_interpolated, y_interpolated) where:
         - x_interpolated: Array of x-values used for interpolation
         - y_interpolated: Array of interpolated y-values at x_interpolated points
-    
+
     Raises
     ------
     ValueError
         If input arrays have incompatible shapes or contain invalid values for
         the chosen interpolation space.
-    
+
     Notes
     -----
     - For response spectra applications, use log_x=True and log_y=True (default)
     - Non-positive values are automatically filtered when using log-space interpolation
     - The Akima interpolator is chosen for its balance of smoothness and conservation,
       avoiding excessive overshoots common in cubic splines for engineering data
-    
+
     Examples
     --------
     >>> # Basic interpolation without plotting
     >>> periods, accelerations = akima_interpolate(headers, spectral_data)
-    
+
     >>> # Interpolate at specific periods and plot with annotations
     >>> target_periods = [0.5, 1.0, 1.5, 2.0]
     >>> x, y = akima_interpolate(
@@ -589,7 +584,7 @@ def akima_interpolate(x_vector, y_vector, new_x_values=None, plot=False,
     ...     annotate_points=target_periods,
     ...     annotation_style={'color': 'blue', 'precision_x': 2, 'precision_y': 4}
     ... )
-    
+
     >>> # Linear space interpolation for non-spectral data
     >>> x_lin, y_lin = akima_interpolate(
     ...     x_data, y_data,
@@ -598,7 +593,7 @@ def akima_interpolate(x_vector, y_vector, new_x_values=None, plot=False,
     ...     plot=True,
     ...     title="Linear Space Interpolation"
     ... )
-    
+
     >>> # Automatic annotation of interpolated curve
     >>> x_auto, y_auto = akima_interpolate(
     ...     headers, spectral_data,
@@ -607,35 +602,35 @@ def akima_interpolate(x_vector, y_vector, new_x_values=None, plot=False,
     ...     npoints=100  # Fewer points for cleaner auto-annotation
     ... )
     """
-    
+
     x_vector = np.array(x_vector)
     y_vector = np.array(y_vector)
-    
+
     # Only filter positive values if using log space
     if log_x:
         mask = x_vector > 0
         x_vector = x_vector[mask]
         y_vector = y_vector[mask]
-    
+
     if log_y:
         mask = y_vector > 0
         x_vector = x_vector[mask]
         y_vector = y_vector[mask]
-    
+
     # Convert to appropriate space
     if log_x:
         interp_x = np.log10(x_vector)
     else:
         interp_x = x_vector
-        
+
     if log_y:
         interp_y = np.log10(y_vector)
     else:
         interp_y = y_vector
-    
+
     # Create interpolator
     akima = Akima1DInterpolator(interp_x, interp_y)
-    
+
     # Generate or use provided x values
     if new_x_values is None:
         if log_x:
@@ -644,57 +639,74 @@ def akima_interpolate(x_vector, y_vector, new_x_values=None, plot=False,
             new_x_values = np.linspace(x_vector.min(), x_vector.max(), npoints)
     else:
         new_x_values = np.array(new_x_values)
-    
+
     # Convert new x values to interpolation space
     if log_x:
         interp_new_x = np.log10(new_x_values)
     else:
         interp_new_x = new_x_values
-    
+
     # Interpolate
     interp_new_y = akima(interp_new_x)
-    
+
     # Convert back from interpolation space if needed
     if log_y:
         new_y_values = 10 ** interp_new_y
     else:
         new_y_values = interp_new_y
-    
+
     # Optional plotting with annotations
     if plot:
         plt.figure(figsize=(10, 6))
-        
+
         # Plot style based on log/linear settings
         if plot_func is not None:
             plot_func(x_vector, y_vector, 'ko', markersize=6, label='Data points', alpha=0.7)
-            plot_func(new_x_values, new_y_values, 'b-', label='Akima interpolation', linewidth=2, alpha=0.8)
+            plot_func(
+                new_x_values, new_y_values, 'b-', label='Akima interpolation',
+                linewidth=2, alpha=0.8,
+            )
         elif log_x and log_y:
             plt.loglog(x_vector, y_vector, 'ko', markersize=6, label='Data points', alpha=0.7)
-            plt.loglog(new_x_values, new_y_values, 'b-', label='Akima interpolation', linewidth=2, alpha=0.8)
+            plt.loglog(
+                new_x_values, new_y_values, 'b-', label='Akima interpolation',
+                linewidth=2, alpha=0.8,
+            )
         elif log_x:
             plt.semilogx(x_vector, y_vector, 'ko', markersize=6, label='Data points', alpha=0.7)
-            plt.semilogx(new_x_values, new_y_values, 'b-', label='Akima interpolation', linewidth=2, alpha=0.8)
+            plt.semilogx(
+                new_x_values, new_y_values, 'b-', label='Akima interpolation',
+                linewidth=2, alpha=0.8,
+            )
         elif log_y:
             plt.semilogy(x_vector, y_vector, 'ko', markersize=6, label='Data points', alpha=0.7)
-            plt.semilogy(new_x_values, new_y_values, 'b-', label='Akima interpolation', linewidth=2, alpha=0.8)
+            plt.semilogy(
+                new_x_values, new_y_values, 'b-', label='Akima interpolation',
+                linewidth=2, alpha=0.8,
+            )
         else:
             plt.plot(x_vector, y_vector, 'ko', markersize=6, label='Data points', alpha=0.7)
-            plt.plot(new_x_values, new_y_values, 'b-', label='Akima interpolation', linewidth=2, alpha=0.8)
-        
+            plt.plot(
+                new_x_values, new_y_values, 'b-', label='Akima interpolation',
+                linewidth=2, alpha=0.8,
+            )
+
         # Annotation settings
         default_annotation_style = {
             'color': 'red',
             'marker_size': 10,
             'text_offset': (15, 15),
-            'bbox_style': dict(boxstyle='round,pad=0.5', facecolor='yellow', alpha=0.8, edgecolor='red'),
+            'bbox_style': dict(
+                boxstyle='round,pad=0.5', facecolor='yellow', alpha=0.8, edgecolor='red',
+            ),
             'arrow_style': dict(arrowstyle='->', color='red', lw=1.5),
             'fontsize': 9,
             'precision_x': 2,
             'precision_y': 3
         }
-        
+
         annotation_style = {**default_annotation_style, **(annotation_style or {})}
-        
+
         # Determine which points to annotate
         points_to_annotate = []
         if annotate_points is True:
@@ -719,16 +731,16 @@ def akima_interpolate(x_vector, y_vector, new_x_values=None, plot=False,
         elif annotate_points is not None:
             # Custom selection logic
             points_to_annotate = annotate_points
-        
+
         # Add annotations
         # if points_to_annotate is not None:
         for i, (x_point, y_point) in enumerate(points_to_annotate):
-            plt.plot(x_point, y_point, 'x', color=annotation_style['color'], 
+            plt.plot(x_point, y_point, 'x', color=annotation_style['color'],
                     markersize=annotation_style['marker_size'], markeredgewidth=2)
-            
+
             label = (f'T={x_point:.{annotation_style["precision_x"]}f} s\n'
                     f'Sa={y_point:.{annotation_style["precision_y"]}f} g')
-            
+
             # Smart offset adjustment for log scales
             text_offset = annotation_style['text_offset']
             if log_x or log_y:
@@ -736,18 +748,18 @@ def akima_interpolate(x_vector, y_vector, new_x_values=None, plot=False,
                 arrowprops = {**annotation_style['arrow_style'], 'connectionstyle': 'arc3,rad=0.1'}
             else:
                 arrowprops = annotation_style['arrow_style']
-            
-            plt.annotate(label, 
-                        xy=(x_point, y_point), 
-                        xytext=text_offset, 
+
+            plt.annotate(label,
+                        xy=(x_point, y_point),
+                        xytext=text_offset,
                         textcoords='offset points',  # This ensures consistent positioning
-                        ha='left', 
+                        ha='left',
                         va='bottom',
                         fontsize=annotation_style['fontsize'],
                         bbox=annotation_style['bbox_style'],
                         arrowprops=arrowprops)
 
-        
+
         plt.xlabel('Period (s)')
         plt.ylabel('Spectral Acceleration (g)')
         plt.title(plot_kwargs.get('title', 'Response Spectrum with Akima Interpolation'))
@@ -756,7 +768,7 @@ def akima_interpolate(x_vector, y_vector, new_x_values=None, plot=False,
         plt.legend()
         plt.grid(True, which="both", ls="-", alpha=0.3)
         plt.show()
-    
+
     return new_x_values, new_y_values
 
 
@@ -765,7 +777,8 @@ def akima_interpolate(x_vector, y_vector, new_x_values=None, plot=False,
 #     'color': 'darkgreen',
 #     'marker_size': 12,
 #     'text_offset': (20, 20),
-#     'bbox_style': dict(boxstyle='round,pad=0.6', facecolor='lightgreen', alpha=0.8, edgecolor='darkgreen'),
+#     'bbox_style': dict(boxstyle='round,pad=0.6', facecolor='lightgreen', alpha=0.8,
+# edgecolor='darkgreen'),
 #     'arrow_style': dict(arrowstyle='-|>', color='green', lw=2),
 #     'fontsize': 10,
 #     'precision_x': 3,
@@ -797,7 +810,7 @@ def _resolve_spectrum(entry: dict, T_plot: np.ndarray, g: float = 9.81) -> np.nd
 
     # --- GB 50011 ---------------------------------------------------------
     if code == "GB50011":
-        from lateral_tools.codes.GB50011 import GB_get_alpha_max, GB_design_spectrum
+        from lateral_tools.codes.GB50011 import GB_design_spectrum, GB_get_alpha_max
 
         alpha_max = GB_get_alpha_max(
             intensity=params.get("intensity", 7),

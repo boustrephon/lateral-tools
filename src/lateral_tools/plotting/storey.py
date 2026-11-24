@@ -10,33 +10,20 @@ plot_storey_VM2  : Storey shear and moment diagram from pre-computed shears/mome
 """
 from __future__ import annotations
 
-from collections.abc import Sequence, Iterator
-from typing import TypeVar, Any, overload, Literal
-
-
-from typing import Union, List, Tuple, Dict, Any
-from math import log, pi, tau, sin, cos, tan, acos, asin, atan, atan2, log, log10  # noqa: F401, F811
-import math
+from collections.abc import Sequence
+from math import acos, asin, atan, atan2, cos, log, log10, pi, sin, tan, tau  # noqa: F401, F811
+from os.path import abspath, dirname
+from os.path import join as path_join
 from sys import path as sys_path
-from os.path import abspath, join as path_join, dirname
+from typing import Any, List, Tuple, TypeVar, Union
 
 # from itertools import accumulate
-
 import matplotlib.pyplot as plt
-import matplotlib.lines as lines
-from matplotlib.figure import Figure
-
-import numpy as np
-
-from scipy.interpolate import make_interp_spline, Akima1DInterpolator, PchipInterpolator
-
 from matplotlib.ticker import EngFormatter
 
 sys_path.append(abspath(path_join(dirname(__file__), '..', '..')))
 
-from lateral_tools.analysis import storey_force_distribution, \
-    storey_shear_moment, shear_coords
-
+from lateral_tools.analysis import shear_coords, storey_force_distribution, storey_shear_moment
 
 # Type aliases to describe the nested data structures
 Curve = Sequence[float]                     # e.g. a list of periods or velocities
@@ -48,8 +35,8 @@ PointCollection = Sequence[Sequence[Point]]   # curves given as (T, Sv) pairs
 T = TypeVar('T')
 
 List_of_lists = Union[
-    List[List[float]], 
-    List[Tuple[float]], 
+    List[List[float]],
+    List[Tuple[float]],
     Tuple[List[float]],
                             ]
 List_of_list_of_lists = Union[
@@ -61,8 +48,12 @@ List_of_list_of_list_of_lists = Union[
     Tuple[List_of_list_of_lists],
                             ]
 
-# Union[List[List[List[float]]], List[List[List[float]]], List[List[Tuple[float, float]]], List[Tuple[Tuple[float, float], ...]], Tuple[List[Tuple[float, float]]], Tuple[Tuple[Tuple[float, float], ...]]]
-# Union[List[List[List[float]]], List[List[List[float]]], List[List[Tuple[float, float]]], List[Tuple[Tuple[float, float], ...]], Tuple[List[Tuple[float, float]]], Tuple[Tuple[Tuple[float, float], ...]]]
+# Union[List[List[List[float]]], List[List[List[float]]], List[List[Tuple[float, float]]],
+# List[Tuple[Tuple[float, float], ...]], Tuple[List[Tuple[float, float]]],
+# Tuple[Tuple[Tuple[float, float], ...]]]
+# Union[List[List[List[float]]], List[List[List[float]]], List[List[Tuple[float, float]]],
+# List[Tuple[Tuple[float, float], ...]], Tuple[List[Tuple[float, float]]],
+# Tuple[Tuple[Tuple[float, float], ...]]]
 
 
 
@@ -76,22 +67,22 @@ List_of_list_of_list_of_lists = Union[
 
 
 def plot_storey_VM(
-        base_shears: Union[float, list, tuple], 
-        storey_elevs: Union[list[float], tuple[float]], 
-        storey_wts: Union[list[float], tuple[float]], 
-        k:float = 1, 
-        base_level: float = 0, 
+        base_shears: Union[float, list, tuple],
+        storey_elevs: Union[list[float], tuple[float]],
+        storey_wts: Union[list[float], tuple[float]],
+        k:float = 1,
+        base_level: float = 0,
         **kwargs: dict):
     """
-    
+
     Args:
         base_shears: base shear(s)
         storey_elevs: storey elevations
-        storey_wts:  
+        storey_wts:
         k: (default = 1)
-        base_level: (default = 0), 
+        base_level: (default = 0),
         **kwargs
-    
+
     Returns:
         fig: Storey shear and moment plot
     """
@@ -115,13 +106,13 @@ def plot_storey_VM(
         ascending = False
     else:
         raise ValueError('Storey elevations are not monotonic')
-    
+
     if ascending:
         storey_elevs = storey_elevs[::-1]
         storey_wts = storey_wts[::-1]
 
     storey_heights = [z2 - z1 for z2, z1 in zip(
-        storey_elevs, 
+        storey_elevs,
         list(storey_elevs[1:]) + [0]
         )]
 
@@ -129,7 +120,7 @@ def plot_storey_VM(
 
     storey_loads = [storey_force_distribution(
         vv, storey_elevs, storey_wts, k) for vv in V]
-    
+
     storey_shears_and_moments = [storey_shear_moment(
         forces, storey_heights, ascending) for forces in storey_loads]
     storey_shears, storey_moments = zip(*storey_shears_and_moments)
@@ -159,7 +150,7 @@ def plot_storey_VM(
     ax_M.set_xlabel('Moment')
     formatterM = EngFormatter(unit='Nm')
     ax_M.xaxis.set_major_formatter(formatterM)
-    
+
     for ax in (ax_V, ax_M):
         ax.set_ylim((0, None))
         ax.minorticks_on()
@@ -173,26 +164,26 @@ def plot_storey_VM(
 
 
 def plot_storey_VM2(
-        storey_elevs: Sequence[float], 
-        storey_shears: Sequence[Sequence[float]], 
-        storey_moments: Sequence[Sequence[float]], 
-        base_level: float = 0, 
+        storey_elevs: Sequence[float],
+        storey_shears: Sequence[Sequence[float]],
+        storey_moments: Sequence[Sequence[float]],
+        base_level: float = 0,
         **kwargs: Any):
     """
-    
+
     Args:
         storey_elevs: storey elevations
         storey_shears:  list of list of storey shears
         storey_moments: list of list of storey moments
-        base_level: (default = 0), 
+        base_level: (default = 0),
         **kwargs
-    
-        Note that the storey shears and moments should be in the 
-        same order as the storey elevations, and the moments should 
+
+        Note that the storey shears and moments should be in the
+        same order as the storey elevations, and the moments should
         include the base moment but not the top moment, which
-        is assumed to be zero. In this way the length of the lists 
+        is assumed to be zero. In this way the length of the lists
         of shears should match the length of the lists of moments
-        
+
     Returns:
         fig: Storey shear and moment plot
     """
@@ -233,10 +224,10 @@ def plot_storey_VM2(
     # Calculate the shear and moment for each storey from top down
     z_V = [shear_coords(
         storey_elevs, V, base_level) for V in storey_shears]
-    
-    # z_M = [[(base_level, 0.0)] + [(elev, M) for elev, M in zip(storey_elevs, M_range)] # + [()] 
+
+    # z_M = [[(base_level, 0.0)] + [(elev, M) for elev, M in zip(storey_elevs, M_range)] # + [()]
     #     for M_range in storey_moments]
-    z_M = [[(elev, M) for elev, M in zip(storey_elevs, M_range)] # + [()] 
+    z_M = [[(elev, M) for elev, M in zip(storey_elevs, M_range)] # + [()]
         for M_range in storey_moments]
 
     fig, [ax_V, ax_M] = plt.subplots(nrows=1, ncols=2, figsize=figsize)

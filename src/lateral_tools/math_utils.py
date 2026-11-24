@@ -10,15 +10,17 @@ This module provides:
 These are low-level utilities used across the package.
 """
 from __future__ import annotations
-from math import isclose
-from typing import Any, Union, Sequence
+
+from typing import Any, Union
+
+
 def as_float(txt:str, default:Any=None) -> Union[float, str]:
     """Converts string to number (float), if possible
-    
+
     Args:
         txt: text for conversion to float
         default: default value if conversion fails
-    
+
     Returns:
         text as float or default value
 
@@ -36,7 +38,7 @@ def as_float(txt:str, default:Any=None) -> Union[float, str]:
         txt = txt.rstrip().replace('%', '')
         scale=0.01
     try:
-        return scale*float(txt)       
+        return scale*float(txt)
     except ValueError:
         if default is None:
             if scale == 1:
@@ -51,11 +53,11 @@ def as_float(txt:str, default:Any=None) -> Union[float, str]:
 
 def as_numeric(txt:str, default:Any=None) -> Union[int, float, str, None]:
     """Converts string to number (int or float), if possible
-        
+
     Args:
         txt: text for conversion to integer or float
         default: default value if conversion fails
-    
+
     Returns:
         text as int, float or default value
 
@@ -90,7 +92,7 @@ def as_numeric(txt:str, default:Any=None) -> Union[int, float, str, None]:
 
 
 units_SI_scaling_dict = {
-    'mi':1609.344, 'yd':0.9144, 'ft':0.3048, 'in':0.0254, 
+    'mi':1609.344, 'yd':0.9144, 'ft':0.3048, 'in':0.0254,
     'km':1000.0, 'm':1.0, 'cm':0.01, 'mm':0.001,
     'GN':1.0E9, 'MN':1.0E6, 'kN':1000.0, 'N':1.0,
     'GNm':1.0E9, 'MNm':1.0E6, 'kNm':1000.0, 'Nm':1.0, 'Nmm':0.001,
@@ -99,9 +101,9 @@ units_SI_scaling_dict = {
     'kN/m^2':1000.0, 'N/m^2':1.0, 'N/mm^2':1.0E6,
     'ksf': 47880.26, 'psf': 47.88026,
     'GPa':1.0E9, 'MPa':1.0E6, 'kPa':1000.0, 'Pa':1.0,
-    'ft/s':0.3048, 'in/s':0.0254, 
+    'ft/s':0.3048, 'in/s':0.0254,
     'km/s':1000.0, 'm/s':1.0, 'cm/s':0.01, 'mm/s':0.001,
-    'ft/s2':0.3048, 'in/s2':0.0254, 'ft/s^2':0.3048, 'in/s^2':0.0254, 
+    'ft/s2':0.3048, 'in/s2':0.0254, 'ft/s^2':0.3048, 'in/s^2':0.0254,
     'km/s2':1000.0, 'm/s2':1.0, 'cm/s2':0.01, 'mm/s2':0.001,
     'km/s^2':1000.0, 'm/s^2':1.0, 'cm/s^2':0.01, 'mm/s^2':0.001,
     'g':9.80665
@@ -113,18 +115,18 @@ units_SI_scaling_dict = {
 def scale_to_SI_units(units: str, default:Any=None) -> float:
     """Returns the factor by which a value with a certain unit
     should be scaled to get to SI units
-    
+
     Args:
-        unit: name of scale factor. Note that this 
-        will have problems with 
+        unit: name of scale factor. Note that this
+        will have problems with
         default: default result if lookup fails
 
-    Returns: 
-        scale: scaling factor   
+    Returns:
+        scale: scaling factor
     """
     scale = units_SI_scaling_dict.get(units, None)
     if scale is None:
-        casefold_dict = {k.casefold():v 
+        casefold_dict = {k.casefold():v
                             for k, v in units_SI_scaling_dict.items()}
         scale = casefold_dict.get(units.casefold(), default)
     return scale
@@ -133,9 +135,9 @@ def scale_to_SI_units(units: str, default:Any=None) -> float:
 
 
 def interp(x:float, x1: float, x2: float, y1: float, y2: float) -> float:
-    """Returns an interpolated y-value for a line 
+    """Returns an interpolated y-value for a line
     between two points (x1, y1) and (x2, y2)
-    for a given x-value - i.e. linear interpolation 
+    for a given x-value - i.e. linear interpolation
     along a line.
 
     Args:
@@ -147,7 +149,7 @@ def interp(x:float, x1: float, x2: float, y1: float, y2: float) -> float:
 
     Returns:
         float: interpolated y-value for a line at point x
-    
+
     Example:
         >>> interp(1.5, 0.7, 1.9, 1.4, 2.3)
         2.0
@@ -166,29 +168,29 @@ def interp(x:float, x1: float, x2: float, y1: float, y2: float) -> float:
 
 
 
-def list_interp(val: float, 
-                list_1: list[float]|tuple[float, ...], 
-                list_2: list[float]|tuple[float, ...], 
+def list_interp(val: float,
+                list_1: list[float]|tuple[float, ...],
+                list_2: list[float]|tuple[float, ...],
                 extend:bool = False, extrapolate:bool=False)-> float | None:
-    """Returns interpolated values from list_2 based 
-    on values related to list_1, returning the bookends 
-    if the provided values are outside the range of 
-    list_1 and if `extrapolate` is False. If any of 
+    """Returns interpolated values from list_2 based
+    on values related to list_1, returning the bookends
+    if the provided values are outside the range of
+    list_1 and if `extrapolate` is False. If any of
     the values are None, it will return `None`.
-    
+
     Args:
         val (float): the lookup value
         list_1 (list[float]): the lookup list
-        list_2 (list[float]): is the result list with values corresponding 
+        list_2 (list[float]): is the result list with values corresponding
                 to those on list_1
-        extend (Bool, optional): the option to extend the values 
+        extend (Bool, optional): the option to extend the values
             outside the limits of list_1 with the bookend values. Defaults to False.
-        extrapolate (Bool, optional): the option to extrapolate linearly 
+        extrapolate (Bool, optional): the option to extrapolate linearly
             outside the limits of list_1. Defaults to False.
 
     Returns:
         float | None: Linearly interpolated function
-        
+
     Examples:
         >>> list_interp(0.5, [0.2, 0.8], [1.1, 1.35])
         1.225
@@ -200,7 +202,7 @@ def list_interp(val: float,
         0
     """
     i_list = [i for i, n in enumerate(list_1) if n == val]
-    if i_list:  
+    if i_list:
         # if lookup value matches a value in list_1
         return list_2[i_list[0]]
     elif val <= list_1[0]:
@@ -223,12 +225,12 @@ def list_interp(val: float,
             return list_2[-1]
     else:
         # carry out interpolation
-        index_list = [i for i, (x1, x2) 
-                      in enumerate(zip(list_1[:-1], list_1[1:])) 
+        index_list = [i for i, (x1, x2)
+                      in enumerate(zip(list_1[:-1], list_1[1:]))
                       if val >= x1 and val <= x2]
         if len(index_list) == 1:
             j = index_list[0]
-            vals = (list_1[j], list_1[j+1], 
+            vals = (list_1[j], list_1[j+1],
                     list_2[j], list_2[j+1])
             if any([v is None for v in vals]):
                 return None

@@ -3,7 +3,7 @@ _summary_
 """
 
 
-def deep_beam_shear(k_1: float, f_cd: float, 
+def deep_beam_shear(k_1: float, f_cd: float,
                     b_1: float, gamma_b: float):
     """Design Shear Capacity Calculation (Eq 5.17)
 

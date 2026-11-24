@@ -14,24 +14,25 @@ https://peer.berkeley.edu/peer-strong-ground-motion-databases
 
 """
 
-from typing import Union, Any, Dict, List, Tuple # , PathLike
 import doctest
+from os.path import abspath, basename, dirname, exists, splitext
+from os.path import join as path_join
 from sys import path as sys_path
-from os.path import abspath, join as path_join, dirname, exists, basename, splitext
+from typing import Any, Dict, List, Tuple, Union  # , PathLike
 
 # Add the parent directory of 'pySeismic' to sys.path
 sys_path.append(abspath(path_join(dirname(__file__), '..', '..')))
 
 
-from lateral_tools.math_utils import scale_to_SI_units, as_float #, as_numeric
 import csv
+
+from lateral_tools.math_utils import as_float, scale_to_SI_units  #, as_numeric
 
 
 def read_csv(csv_file, header=1, as_dict=True):
     with open(csv_file, mode='r') as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=',')
         data = [row if i < header else [float(r) for r in row] for i, row in enumerate(csv_reader)]
-    axes_txt = ['x', 'y', 'z']
     if as_dict:
         x_data, y_data = zip(*data)
         x_key = 'x' if header == 0 else (x_data[0] if header == 1 else tuple(x_data[:header]))
@@ -43,8 +44,8 @@ def read_csv(csv_file, header=1, as_dict=True):
 
 def ASC_record_pair_SI_scaling(
         record: Union[
-            List[Union[float, int]], 
-            Tuple[Union[float, int]]], 
+            List[Union[float, int]],
+            Tuple[Union[float, int]]],
         units: Union[str, float, int]
         ) -> Tuple[float]:
     """Scales a time, value pair to SI units.
@@ -56,10 +57,10 @@ def ASC_record_pair_SI_scaling(
 
     Args:
         record: a data pair where the second needs scaling
-        units: either 
-    
+        units: either
+
     Result:
-        tuple containing the data pair where second has been 
+        tuple containing the data pair where second has been
         scaled to SI
     """
     x, y = record
@@ -75,12 +76,12 @@ def read_ASC(
         seed_dict: Dict[str, Any]={}
         ) -> Dict[str, Any]:
     """Imports ASC seismic data into a dictionary
-    
-    Imports an ASC files and returns a dictionary 
-    containing all the meta data (on the basis that the 
-    data is compatible with DYNA 1.2 header format). 
-    It places the time-domain data or frequency-domain 
-    data under the "Data" keyword, and also adds 
+
+    Imports an ASC files and returns a dictionary
+    containing all the meta data (on the basis that the
+    data is compatible with DYNA 1.2 header format).
+    It places the time-domain data or frequency-domain
+    data under the "Data" keyword, and also adds
     'xlabel' and 'ylabel' data for plotting.
 
     The dictionary can easily be read into a Pandas dataframe for
@@ -91,7 +92,7 @@ def read_ASC(
         seed_dict: additional metadata for the dictionary
 
     Returns:
-        asc_dict: 
+        asc_dict:
     """
     if exists(file_path):
         t = 0
@@ -135,22 +136,22 @@ def read_ASC(
             asc_dict['xlabel'] = 'Period (s)' if 'Spectrum' in data_type else 'Time (s)'
             asc_dict['ylabel'] = f'{data_type.split()[0]} ({units})'
         return asc_dict
-    
+
     else:
         return None
 
 
-def ASC_import(asc_files, folder=r'./', 
+def ASC_import(asc_files, folder=r'./',
                export=False, debug=False):
     """
-    Imports a list of ASC files from a single folder and returns 
-    a dictionary containing one entry for each file. In other words, 
-    it does not identify pairs or triplets of files. 
+    Imports a list of ASC files from a single folder and returns
+    a dictionary containing one entry for each file. In other words,
+    it does not identify pairs or triplets of files.
 
     The dictionary can easily be read into a Pandas dataframe for
     further processing.
 
-     
+
     """
     EQ_dict = {}
     for asc in asc_files:
@@ -162,15 +163,15 @@ def ASC_import(asc_files, folder=r'./',
         station = asc_list[1].strip()
         # ev_st = f'{event}_{station}'
         eq_dir = asc_list[-1].strip()
-        
+
         infile = path_join(folder, asc)
         outfile = path_join(folder, name + '.csv')
 
         if not exists(infile):
             raise IOError('File is not present')
-        
+
         # print(infile) ; print(outfile) ; print(exists(infile))
-        
+
         if name in EQ_dict.keys():
             print(f'File {asc} is already in the dictionary')
         elif not exists(infile):
@@ -178,7 +179,7 @@ def ASC_import(asc_files, folder=r'./',
         else:
             asc_dict = read_ASC(infile)
             units = asc_dict.get('UNITS', '')
-            data_type= asc_dict.get('DATA_TYPE', '')            
+            data_type= asc_dict.get('DATA_TYPE', '')
             th = asc_dict.get('Data', [])
             asc_dict['Event'] = event
             asc_dict['Station'] = station
@@ -186,7 +187,7 @@ def ASC_import(asc_files, folder=r'./',
             EQ_dict[name] = asc_dict.copy()
             if debug:
                 print(f'{data_type:40s}: File {asc}')
-            
+
             # Export data to CSV files
             if export:
                 with open(outfile, 'w') as csv_file:
@@ -203,21 +204,21 @@ def ASC_import(asc_files, folder=r'./',
                         csv_file.write(f'Period (s), Velocity ({units})\n')
                     elif '_ResSpecDisp_' in name:
                         csv_file.write(f'Period (s), Displacement ({units})\n')
-                    [csv_file.write(f'{x},{y}\n') for x, y in th]    
-    
+                    [csv_file.write(f'{x},{y}\n') for x, y in th]
+
     return EQ_dict
 
 
 def ASC_import_ss(asc_files, folder=r'./', export=False):
     """
-    Imports a list of ASC files from a single folder and returns 
-    a dictionary containing one entry for each file. In other words, 
-    it does not identify pairs or triplets of files. 
+    Imports a list of ASC files from a single folder and returns
+    a dictionary containing one entry for each file. In other words,
+    it does not identify pairs or triplets of files.
 
     The dictionary can easily be read into a Pandas dataframe for
     further processing.
 
-    This data is best suited for plotting with the 
+    This data is best suited for plotting with the
     """
     EQ_dict = {}
     for asc in asc_files:
@@ -229,15 +230,15 @@ def ASC_import_ss(asc_files, folder=r'./', export=False):
         eq_dir = asc_list[-1].strip()
 
         asc_dict = {'Input File': asc, 'EQ_DIR': eq_dir}
-        
+
         infile = path_join(folder, asc)
         outfile = path_join(folder, name + '.csv')
         # print(infile) ; print(outfile) ; print(exists(infile))
-        
+
         th = []
         t = 0
         record_type = ''
-        
+
         #
         with open(infile, 'r') as asc_file:
             for line in asc_file:
@@ -261,8 +262,8 @@ def ASC_import_ss(asc_files, folder=r'./', export=False):
         units = asc_dict.get('UNITS', '')
         asc_dict['RecType'] = record_type
         data_type = asc_dict.get('DATA_TYPE', '').strip()
-            
-        if record_type == 'Acc':            
+
+        if record_type == 'Acc':
             asc_dict['xlabel'] = 'Time (s)'
             asc_dict['ylabel'] = f'Acceleration ({units})'
         elif record_type == 'RS':
@@ -285,7 +286,7 @@ def ASC_import_ss(asc_files, folder=r'./', export=False):
         # Export data to CSV files
         if export:
             with open(outfile, 'w') as csv_file:
-                
+
                 csv_file.write(f'{name}\n')
                 if '_Acc_' in name:
                     csv_file.write(f'Time (s), Acceleration ({units})\n')
@@ -304,13 +305,13 @@ def ASC_import_ss(asc_files, folder=r'./', export=False):
 
 def ASC_import2_ss(asc_files, folder=r'./'):
     """
-    Returns a dictionary of two dictionaries - one for ground motions (key 'TH') and 
+    Returns a dictionary of two dictionaries - one for ground motions (key 'TH') and
     one for response spectra (key 'RS'). The keys of each sub-dictionary are the truncated
-    filenames. 
+    filenames.
 
-    This function ignores all metadata, apart from extracting 'SAMPLING_INTERVAL_S' 
-    and 'UNITS' to get the delta-t for the acceleration records ('TH') and to 
-    report the recorded measurement units respectively. 
+    This function ignores all metadata, apart from extracting 'SAMPLING_INTERVAL_S'
+    and 'UNITS' to get the delta-t for the acceleration records ('TH') and to
+    report the recorded measurement units respectively.
 
     Note that it is hardwired for the filename formats in the resources folder:
         20230206011732_4628_ap_ResSpecAcc_E.asc -> key = "20230206011732_4628"
@@ -333,14 +334,14 @@ def ASC_import2_ss(asc_files, folder=r'./'):
         # print(infile)
         # print(outfile)
         # print(exists(infile))
-        
+
         if any(txt in asc for txt in ('_Disp_', '_Vel_', '_Acc_')):
             # print('Acc', asc)
             t = 0
             th = []
             asc_dict = {}
             th_dict = TH_dict.get(ev_st,{})
-            
+
             with open(infile, 'r') as asc_file:
                 for line in asc_file:
                     if len(line.strip()) == 0:
@@ -356,7 +357,7 @@ def ASC_import2_ss(asc_files, folder=r'./'):
                         if len(samp_int) > 0:
                             th.append((t, line.strip()))
                             t = round(t + dt, len(samp_int))
-            
+
             units = asc_dict.get('UNITS', '')
             data_type = asc_dict.get('DATA_TYPE', '').strip()
             if any(txt in data_type for txt in ('Displacement', 'Velocity', 'Acceleration')):
@@ -371,13 +372,13 @@ def ASC_import2_ss(asc_files, folder=r'./'):
             asc_dict = {}  # asc_dict is discarded
 
         elif any(txt in asc for txt in ('_ResSpecDisp_', '_ResSpecVel_', '_ResSpecAcc_')):
-        
+
             # print('ResSpecAcc', asc)
             th = []
             asc_dict = {}
             rs_dict = RS_dict.get(ev_st,{})
             th = []
-            
+
             with open(infile, 'r') as asc_file:
                 for line in asc_file:
                     if len(line.strip()) == 0:
@@ -388,7 +389,7 @@ def ASC_import2_ss(asc_files, folder=r'./'):
                     elif ' ' in line.strip():
                         T, S = line.strip().split()
                         th.append((T, S))
-                    
+
             units = asc_dict.get('UNITS', '')
             data_type = asc_dict.get('DATA_TYPE', '').strip()
             if any(txt in data_type for txt in ('Displacement', 'Velocity', 'Acceleration')):
@@ -396,12 +397,12 @@ def ASC_import2_ss(asc_files, folder=r'./'):
             else:
                 dt = ''
             rs_dict['xlabel'] = 'Period (s)'
-            
+
             rs_dict['ylabel'] = f'Spectral {dt} ({units})'
             data = [(float(x), float(y)) for x, y in th]
             rs_dict[direction] = data
             RS_dict[ev_st] = rs_dict.copy()
-    
+
     return {'TH':TH_dict, 'RS':RS_dict}
 
 

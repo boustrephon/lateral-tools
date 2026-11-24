@@ -39,18 +39,19 @@ struct_types_dict = {
 'RM1': 'Reinforced Masonry Bearing Walls',
 'RM2': 'Reinforced Masonry Bearing Walls Flexible Diaphragm',
 'URM': 'Unreinforced Masonry Bearing Walls',
-'URM': 'Unreinforced Masonry Bearing Walls Flexible Diaphragm'
+'URMA': 'Unreinforced Masonry Bearing Walls Flexible Diaphragm'
 }
 
 
 # Simplified Rehabilitation
-# Table 10-1  ASCE41-06 Limitations on Use of the Simplified Rehabilitation Method (number of storeys)
+# Table 10-1  ASCE41-06 Limitations on Use of the Simplified Rehabilitation Method (number of
+# storeys)
 struct_types_full_dict = {
 'W1': {'Description':'Light Wood Frame', 'L':3, 'M':3, 'H':2, },
 'W1A': {'Description':'Multistory Multi-Unit Residential Wood Frame', 'L':3, 'M':3, 'H':2, },
 'W2': {'Description':'Commercial and Industrial Wood Frame', 'L':3, 'M':3, 'H':2, },
 'S1': {'Description':'Steel MRF', 'L':6, 'M':4, 'H':3, },
-'S1': {'Description':'Steel MRF', 'L':4, 'M':4, 'H':3, },
+'S1A': {'Description':'Steel MRF Flexible Diaphragm', 'L':4, 'M':4, 'H':3, },
 'S2': {'Description':'Steel Braced Frame', 'L':6, 'M':4, 'H':3, },
 'S2A': {'Description':'Steel Braced Frame Flexible Diaphragm', 'L':3, 'M':3, 'H':3, },
 'S3': {'Description':'Steel Light Frame', 'L':2, 'M':2, 'H':2, },

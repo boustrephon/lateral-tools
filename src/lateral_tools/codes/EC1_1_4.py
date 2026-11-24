@@ -2,9 +2,10 @@
 Calculations for Eurocode 1991-1-4 - Wind Loads
 """
 
-import sys
-from os.path import join as path_join, dirname, abspath
 import doctest
+import sys
+from os.path import abspath, dirname
+from os.path import join as path_join
 
 # Add the parent directory of 'pySeismic' to sys.path
 sys.path.append(abspath(path_join(dirname(__file__), '..', '..')))
@@ -12,15 +13,18 @@ sys.path.append(abspath(path_join(dirname(__file__), '..', '..')))
 # print('sys_path:', sys.path)
 
 from math import log10
+
 import matplotlib.pyplot as plt
+
 from lateral_tools.math_utils import list_interp  # noqa: E402
+
 # from ..utilities import list_interp
 
 
 def get_c_f0(d, b):
-    """Force coefficient c_f,0 of rectangular sections with sharp 
+    """Force coefficient c_f,0 of rectangular sections with sharp
     corners and without free end flow (Figure 7.23).
-    
+
     The force coefficient c_f is calculated by multiplying c_f,0 by
     psi_r and psi_lambda.
 
@@ -30,7 +34,7 @@ def get_c_f0(d, b):
 
     Returns:
         float: _description_
-    
+
     Example:
         >>> get_c_f0(9.2, 10.0)
         2.18
@@ -45,9 +49,9 @@ def get_c_f0(d, b):
 
 
 def plot_c_f0(d_b_dict):
-    """Force coefficient c_f,0 of rectangular sections with sharp 
+    """Force coefficient c_f,0 of rectangular sections with sharp
     corners and without free end flow (Figure 7.23).
-    
+
     Note: the force coefficient c_f is calculated by multiplying c_f,0 by
     psi_r and psi_lambda.
 
@@ -57,7 +61,7 @@ def plot_c_f0(d_b_dict):
 
     Returns:
         list[float]: list of c_f0 values
-    
+
     Example:
         >>> get_c_f0(9.2, 10.0)
         2.18
@@ -67,10 +71,10 @@ def plot_c_f0(d_b_dict):
         [2.0, 2.0, 2.0, 2.4, 2.1, 1.65, 1.0, 0.9, 0.9, 0.9]
     """
     c_f0_list = []
-    
+
     d_b = (0.1, 0.2, 0.6, 0.7, 1.0, 2.0, 5.0, 10.0, 50.0)
     c_f0 = (2.0, 2.0, 2.35, 2.4, 2.1, 1.65, 1.0, 0.9, 0.9)
-    
+
     # Plot the line
     plt.plot(d_b, c_f0, label='')
 
@@ -95,7 +99,7 @@ def plot_c_f0(d_b_dict):
     plt.grid(True, which='both', linestyle='--', linewidth=0.5)
 
     # Add specific lines
-    [plt.axhline(y=yval, color='grey', linestyle='-', linewidth=0.5, zorder=0) 
+    [plt.axhline(y=yval, color='grey', linestyle='-', linewidth=0.5, zorder=0)
      for yval in c_f0[1:-1]]
     [plt.axvline(x=xval, color='grey', linestyle='-', linewidth=0.5, zorder=0)
      for xval in d_b[1:-2]]
@@ -120,52 +124,85 @@ def get_c_fz(b, d_tot, theta=0):
 
 
 FLAT_ROOF_COEFF_DICT = {
-    'sharp eaves': {'hp_h': 0.0, 'r_h': 0.0, 'alpha': 90, 'F_10': -1.8, 'G_10': -1.2, 'H_10': -0.7, 'Ip_10': +0.2, 'In_10': -0.2,
-                                                               'F_1': -2.5, 'G_1': -2.0, 'H_1': -1.2, 'Ip_1': +0.2, 'In_1': -0.2,},
-    'parapets 25': {'hp_h': 0.025, 'r_h': 0.0, 'alpha': 90, 'F_10': -1.6, 'G_10': -1.1, 'H_10': -0.7, 'Ip_10': +0.2, 'In_10': -0.2,
-                                                               'F_1': -2.2, 'G_1': -1.8, 'H_1': -1.2, 'Ip_1': +0.2, 'In_1': -0.2,},
-    'parapets 50': {'hp_h': 0.050, 'r_h': 0.0, 'alpha': 90, 'F_10': -1.4, 'G_10': -0.9, 'H_10': -0.7, 'Ip_10': +0.2, 'In_10': -0.2,
-                                                               'F_1': -2.0, 'G_1': -1.6, 'H_1': -1.2, 'Ip_1': +0.2, 'In_1': -0.2,},
-    'parapets 100': {'hp_h': 0.10, 'r_h': 0.0, 'alpha': 90, 'F_10': -1.2, 'G_10': -0.8, 'H_10': -0.7, 'Ip_10': +0.2, 'In_10': -0.2,
-                                                               'F_1': -1.8, 'G_1': -1.4, 'H_1': -1.2, 'Ip_1': +0.2, 'In_1': -0.2,},
-    'curved eaves 5': {'hp_h': 0.00, 'r_h': 0.05, 'alpha': 90, 'F_10': -1.0, 'G_10': -1.2, 'H_10': -0.4, 'Ip_10': +0.2, 'In_10': -0.2,
-                                                                'F_1': -1.5, 'G_1': -1.8, 'H_1': -0.4, 'Ip_1': +0.2, 'In_1': -0.2,},
-    'curved eaves 10': {'hp_h': 0.00, 'r_h': 0.10, 'alpha': 90, 'F_10': -0.7, 'G_10': -0.8, 'H_10': -0.3, 'Ip_10': +0.2, 'In_10': -0.2,
-                                                                'F_1': -1.2, 'G_1': -1.4, 'H_1': -0.3, 'Ip_1': +0.2, 'In_1': -0.2,},
-    'curved eaves 20': {'hp_h': 0.00, 'r_h': 0.20, 'alpha': 90, 'F_10': -0.5, 'G_10': -0.5, 'H_10': -0.3, 'Ip_10': +0.2, 'In_10': -0.2,
-                                                                'F_1': -0.8, 'G_1': -0.8, 'H_1': -0.3, 'Ip_1': +0.2, 'In_1': -0.2,},
-    'mansard eaves 30': {'hp_h': 0.00, 'r_h': 0.00, 'alpha': 30, 'F_10': -1.0, 'G_10': -1.0, 'H_10': -0.3, 'Ip_10': +0.2, 'In_10': -0.2,
-                                                                'F_1': -1.5, 'G_1': -1.5, 'H_1': -0.3, 'Ip_1': +0.2, 'In_1': -0.2,},
-    'mansard eaves 45': {'hp_h': 0.00, 'r_h': 0.00, 'alpha': 45, 'F_10': -1.2, 'G_10': -1.3, 'H_10': -0.4, 'Ip_10': +0.2, 'In_10': -0.2,
-                                                                'F_1': -1.8, 'G_1': -1.9, 'H_1': -0.4, 'Ip_1': +0.2, 'In_1': -0.2,},
-    'mansard eaves 60': {'hp_h': 0.00, 'r_h': 0.00, 'alpha': 60, 'F_10': -1.3, 'G_10': -1.3, 'H_10': -0.5, 'Ip_10': +0.2, 'In_10': -0.2,
-                                                                'F_1': -1.9, 'G_1': -1.9, 'H_1': -0.5, 'Ip_1': +0.2, 'In_1': -0.2,},
-    'mansard eaves 90': {'hp_h': 0.00, 'r_h': 0.00, 'alpha': 90, 'F_10': -1.8, 'G_10': -1.2, 'H_10': -0.7, 'Ip_10': +0.2, 'In_10': -0.2,
-                                                               'F_1': -2.5, 'G_1': -2.0, 'H_1': -1.2, 'Ip_1': +0.2, 'In_1': -0.2,},
+    'sharp eaves': {
+        'hp_h': 0.0, 'r_h': 0.0, 'alpha': 90, 'F_10': -1.8, 'G_10': -1.2, 'H_10': -0.7,
+        'Ip_10': +0.2, 'In_10': -0.2, 'F_1': -2.5, 'G_1': -2.0, 'H_1': -1.2, 'Ip_1': +0.2,
+        'In_1': -0.2,
+    },
+    'parapets 25': {
+        'hp_h': 0.025, 'r_h': 0.0, 'alpha': 90, 'F_10': -1.6, 'G_10': -1.1, 'H_10': -0.7,
+        'Ip_10': +0.2, 'In_10': -0.2, 'F_1': -2.2, 'G_1': -1.8, 'H_1': -1.2, 'Ip_1': +0.2,
+        'In_1': -0.2,
+    },
+    'parapets 50': {
+        'hp_h': 0.050, 'r_h': 0.0, 'alpha': 90, 'F_10': -1.4, 'G_10': -0.9, 'H_10': -0.7,
+        'Ip_10': +0.2, 'In_10': -0.2, 'F_1': -2.0, 'G_1': -1.6, 'H_1': -1.2, 'Ip_1': +0.2,
+        'In_1': -0.2,
+    },
+    'parapets 100': {
+        'hp_h': 0.10, 'r_h': 0.0, 'alpha': 90, 'F_10': -1.2, 'G_10': -0.8, 'H_10': -0.7,
+        'Ip_10': +0.2, 'In_10': -0.2, 'F_1': -1.8, 'G_1': -1.4, 'H_1': -1.2, 'Ip_1': +0.2,
+        'In_1': -0.2,
+    },
+    'curved eaves 5': {
+        'hp_h': 0.00, 'r_h': 0.05, 'alpha': 90, 'F_10': -1.0, 'G_10': -1.2, 'H_10': -0.4,
+        'Ip_10': +0.2, 'In_10': -0.2, 'F_1': -1.5, 'G_1': -1.8, 'H_1': -0.4, 'Ip_1': +0.2,
+        'In_1': -0.2,
+    },
+    'curved eaves 10': {
+        'hp_h': 0.00, 'r_h': 0.10, 'alpha': 90, 'F_10': -0.7, 'G_10': -0.8, 'H_10': -0.3,
+        'Ip_10': +0.2, 'In_10': -0.2, 'F_1': -1.2, 'G_1': -1.4, 'H_1': -0.3, 'Ip_1': +0.2,
+        'In_1': -0.2,
+    },
+    'curved eaves 20': {
+        'hp_h': 0.00, 'r_h': 0.20, 'alpha': 90, 'F_10': -0.5, 'G_10': -0.5, 'H_10': -0.3,
+        'Ip_10': +0.2, 'In_10': -0.2, 'F_1': -0.8, 'G_1': -0.8, 'H_1': -0.3, 'Ip_1': +0.2,
+        'In_1': -0.2,
+    },
+    'mansard eaves 30': {
+        'hp_h': 0.00, 'r_h': 0.00, 'alpha': 30, 'F_10': -1.0, 'G_10': -1.0, 'H_10': -0.3,
+        'Ip_10': +0.2, 'In_10': -0.2, 'F_1': -1.5, 'G_1': -1.5, 'H_1': -0.3, 'Ip_1': +0.2,
+        'In_1': -0.2,
+    },
+    'mansard eaves 45': {
+        'hp_h': 0.00, 'r_h': 0.00, 'alpha': 45, 'F_10': -1.2, 'G_10': -1.3, 'H_10': -0.4,
+        'Ip_10': +0.2, 'In_10': -0.2, 'F_1': -1.8, 'G_1': -1.9, 'H_1': -0.4, 'Ip_1': +0.2,
+        'In_1': -0.2,
+    },
+    'mansard eaves 60': {
+        'hp_h': 0.00, 'r_h': 0.00, 'alpha': 60, 'F_10': -1.3, 'G_10': -1.3, 'H_10': -0.5,
+        'Ip_10': +0.2, 'In_10': -0.2, 'F_1': -1.9, 'G_1': -1.9, 'H_1': -0.5, 'Ip_1': +0.2,
+        'In_1': -0.2,
+    },
+    'mansard eaves 90': {
+        'hp_h': 0.00, 'r_h': 0.00, 'alpha': 90, 'F_10': -1.8, 'G_10': -1.2, 'H_10': -0.7,
+        'Ip_10': +0.2, 'In_10': -0.2, 'F_1': -2.5, 'G_1': -2.0, 'H_1': -1.2, 'Ip_1': +0.2,
+        'In_1': -0.2,
+    },
 }
 
 
-def get_flat_roof_c_pe(zone:str, area:float, roof_type:str = 'sharp eaves', 
-                       hp_h:float = 0, r_h:float = 0, alpha:float = 90, 
+def get_flat_roof_c_pe(zone:str, area:float, roof_type:str = 'sharp eaves',
+                       hp_h:float = 0, r_h:float = 0, alpha:float = 90,
                        limit:str='negative')->float:
     """Returns external pressure coefficient for flat roofs based on values
     in Table 7.2 (taken from dictionary: 'FLAT_ROOF_COEFF_DICT')
     (Table 7.2 of EC1-1-4)
-    
+
     The effect of area upon the output is taken from figure 7.2
 
     Args:
         roof_type (str): 'sharp eaves' , 'parapets', 'curved eaves', 'mansard eaves'
-        zone (str): 'F' to 'I', or 'Ip' or 'In' (since positive or negative pressure 
+        zone (str): 'F' to 'I', or 'Ip' or 'In' (since positive or negative pressure
             can be returned, default for 'I' is negative.)
         area (float): area of element(s) under consideration (sq.m.)
-        hp_h (float, optional): Required for parapet cases: height of parapet (h_p) 
+        hp_h (float, optional): Required for parapet cases: height of parapet (h_p)
             over building height (h). Defaults to 0.
-        r_h (float, optional): Required for curved eaves cases: radius of eaves (r) 
+        r_h (float, optional): Required for curved eaves cases: radius of eaves (r)
             over building height (h). Defaults to 0.
-        alpha (float, optional): Required for mansard cases: angle of mansard. 
+        alpha (float, optional): Required for mansard cases: angle of mansard.
             Defaults to 90.
-        limit (str, optional): 'positive' or 'negative' value - only relevant to 
+        limit (str, optional): 'positive' or 'negative' value - only relevant to
             zone I. Defaults to 'negative'.
 
     Raises:
@@ -173,7 +210,7 @@ def get_flat_roof_c_pe(zone:str, area:float, roof_type:str = 'sharp eaves',
 
     Returns:
         float: external pressure coefficient for flat roofs (Table 7.2 of EC1-1-4)
-    
+
     Examples:
     >>> get_flat_roof_c_pe('G', 10.0)
     -1.2
@@ -199,7 +236,8 @@ def get_flat_roof_c_pe(zone:str, area:float, roof_type:str = 'sharp eaves',
         c_pe_dict = FLAT_ROOF_COEFF_DICT.get('sharp eaves', None)
         c_pe_10, c_pe_1 = [c_pe_dict.get(zone + area) for area in ('_10', '_1')]
         # c_pe = list_interp(area, (1.0, 10.0), (c_pe_1, c_pe_10), extend=True)
-        c_pe = max(c_pe_10, min(c_pe_1, c_pe_1 - (c_pe_1 - c_pe_10) * log10(area))) # from Figure 7.2
+        # from Figure 7.2
+        c_pe = max(c_pe_10, min(c_pe_1, c_pe_1 - (c_pe_1 - c_pe_10) * log10(area)))
     else:
         pattern = ''
         if roof_type.startswith(pattern := 'parapets'):
@@ -210,17 +248,30 @@ def get_flat_roof_c_pe(zone:str, area:float, roof_type:str = 'sharp eaves',
             name, value, scale = 'alpha', alpha, 1
         else:
             raise ValueError(f'Unknown roof type: {roof_type}')
-        
-        # Identify relevant dictionaries based on category (pattern), creating a new scaled integer key for each.
-        c_pe_dicts = {int(scale * v.get(name, 0)): v for k, v in FLAT_ROOF_COEFF_DICT.items() if k.startswith(pattern)}
-        
-        # Get the results for the area extremes (c_pe_10 and c_pe_1 for the range of the variable (h_p/h, r/h & alpha))
-        c_pe_10_range, c_pe_1_range = [[(k, c_pe_dict.get(zone + area)) for k, c_pe_dict in c_pe_dicts.items()] for area in ('_10', '_1')]
-        c_pe_10, c_pe_1 = [list_interp(value * scale, *zip(*c_pe_range), extend=True) for c_pe_range in (c_pe_10_range, c_pe_1_range)]
-    
+
+        # Identify relevant dictionaries based on category (pattern), creating a new scaled
+        # integer key for each.
+        c_pe_dicts = {
+            int(scale * v.get(name, 0)): v
+            for k, v in FLAT_ROOF_COEFF_DICT.items()
+            if k.startswith(pattern)
+        }
+
+        # Get the results for the area extremes (c_pe_10 and c_pe_1 for the range of the
+        # variable (h_p/h, r/h & alpha))
+        c_pe_10_range, c_pe_1_range = [
+            [(k, c_pe_dict.get(zone + area)) for k, c_pe_dict in c_pe_dicts.items()]
+            for area in ('_10', '_1')
+        ]
+        c_pe_10, c_pe_1 = [
+            list_interp(value * scale, *zip(*c_pe_range), extend=True)
+            for c_pe_range in (c_pe_10_range, c_pe_1_range)
+        ]
+
         c_pe_min, c_pe_max = sorted([c_pe_1, c_pe_10])
-        c_pe = max(c_pe_min, min(c_pe_max, c_pe_1 - (c_pe_1 - c_pe_10) * log10(area))) # from Figure 7.2
-        
+        # from Figure 7.2
+        c_pe = max(c_pe_min, min(c_pe_max, c_pe_1 - (c_pe_1 - c_pe_10) * log10(area)))
+
     return c_pe
 
 
@@ -236,4 +287,3 @@ if __name__ == "__main__":
     doctest.testmod()
     print('== Doctest Complete ==')
     main()
-    

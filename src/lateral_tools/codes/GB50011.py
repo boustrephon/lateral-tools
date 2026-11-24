@@ -1,19 +1,19 @@
 """
-These are some old functions that are mainly based on the 2001 version of the code, 
+These are some old functions that are mainly based on the 2001 version of the code,
 since there is a readily available translation.
 
-GB 18306-2015 "Seismic Ground Motion Parameter Zonation Map of China" 
-(which replaced older versions) provides the zonation map using these 
-parameters, and GB 50011-2010 "Code for Seismic Design of Buildings" 
-uses the intensity levels defined in these standards to determine design 
+GB 18306-2015 "Seismic Ground Motion Parameter Zonation Map of China"
+(which replaced older versions) provides the zonation map using these
+parameters, and GB 50011-2010 "Code for Seismic Design of Buildings"
+uses the intensity levels defined in these standards to determine design
 parameters (e.g., 0.10g, 0.15g, 0.20g, 0.30g, 0.40g).
 """
 
-from typing import Sequence, Any
+from typing import Any, Sequence
+
 import numpy as np
 from numpy import floating
-from numpy.typing import NDArray #, ArrayLike
-
+from numpy.typing import NDArray  #, ArrayLike
 
 # GB/T 17742-2008: "Chinese Seismic Intensity Scale"
 intensity_dict = {
@@ -28,18 +28,21 @@ intensity_dict = {
 def get_intensity(value, debug = False):
     """
     Convert a PGA value to the corresponding intensity based on the GB/T 17742-2008 scale
-    
+
     Args:
         value (float): PGA value
-    
+
     Returns:
         str: The intensity corresponding to the given PGA value
     """
     intensity = 'High'
-    for key, low, high in [(k, v['min'] / 9.81, v['max'] / 9.81) 
+    for key, low, high in [(k, v['min'] / 9.81, v['max'] / 9.81)
         for k, v in intensity_dict.items()]:
-        if debug: 
-            print(f'{key}, {value:.4f} | {value < low} | {low <= value < high} | {low:.4f}, {high:.4f}')
+        if debug:
+            print(
+                f'{key}, {value:.4f} | {value < low} | {low <= value < high} | '
+                f'{low:.4f}, {high:.4f}'
+            )
         if value < low:
             intensity = 'Low'
         elif low <= value < high:
@@ -52,7 +55,7 @@ def get_intensity(value, debug = False):
 # China Code
 # Table 5.1.4-1
 seismic_zone_dict = {
-    '6': {'intensity':'6 (0.05g)', 'PGA': 0.05, 'alphamax_L1': 0.04, 'alphamax_L3': None}, 
+    '6': {'intensity':'6 (0.05g)', 'PGA': 0.05, 'alphamax_L1': 0.04, 'alphamax_L3': None},
     '7': {'intensity':'7 (0.10g)', 'PGA': 0.10, 'alphamax_L1': 0.08, 'alphamax_L3': 0.5},
     '7+': {'intensity':'7 (0.15g)', 'PGA': 0.15, 'alphamax_L1': 0.12, 'alphamax_L3': 0.72},
     '8': {'intensity':'8 (0.20g)', 'PGA': 0.20, 'alphamax_L1': 0.16, 'alphamax_L3': 0.9},
@@ -61,7 +64,7 @@ seismic_zone_dict = {
     }
 
 fortification_dict = {
-    '6':0.05, '7':0.10, '7+':0.15, '8':0.20, '8+':0.30, '9':0.40, 
+    '6':0.05, '7':0.10, '7+':0.15, '8':0.20, '8+':0.30, '9':0.40,
 }
 
 
@@ -94,7 +97,7 @@ T_G_dict_GB50023_2009 = {
     3:{'I': 0.25, 'II': 0.40, 'III': 0.55, 'IV': 0.85}
 }
 
-def T_G_freq_calc(MD_Group:int, soil_class:str, 
+def T_G_freq_calc(MD_Group:int, soil_class:str,
                   T_G_dict = T_G_dict_GB50011_2001)->float:
     """GB50011-2001 Table 5.1.4-2
 
@@ -208,13 +211,13 @@ def GB_design_spectrum(
     return GB_spectrum(alpha_max, T, site_class, group, zeta, T_G_dict) * 9.81
 
 
-def GB_spectrum(alpha_max:float, T:Sequence[float]|NDArray[floating[Any]], 
-                site_class:str='I0', 
+def GB_spectrum(alpha_max:float, T:Sequence[float]|NDArray[floating[Any]],
+                site_class:str='I0',
                 group:int=1, zeta:float=0.05,
                 T_G_dict:dict=T_G_dict_GB50011_2010)->NDArray[Any]:
     """Returns GB spectral acceleration Sa(g) for given PGA(g) and period array T(s).
     GB soil class I0 - IV, Group 1 spectrum.
-    
+
     Args:
         alpha_max (float): _description_
         T (Sequence[float] | NDArray[floating[Any]]): _description_
@@ -226,7 +229,7 @@ def GB_spectrum(alpha_max:float, T:Sequence[float]|NDArray[floating[Any]],
                 T_G_dict_GB50011_2001
                 T_G_dict_GB50011_2010
                 T_G_dict_GB50023_2009
-    
+
     Raises:
         ValueError: _description_
 
@@ -236,7 +239,7 @@ def GB_spectrum(alpha_max:float, T:Sequence[float]|NDArray[floating[Any]],
     gamma = 0.9 + (0.05 - zeta) / (0.3 + 6.0 * zeta)
     eta_1 = max(0.0, 0.02 + (0.05 - zeta) / (4.0 + 32.0 * zeta))
     eta_2 = max(0.55, 1.0 + (0.05 - zeta) / (0.08 + 1.6 * zeta))
-    
+
     T_g = T_G_dict[group][site_class]
     # pga = alpha_max * 0.45
     Sa = np.zeros_like(T)
@@ -253,13 +256,13 @@ def GB_spectrum(alpha_max:float, T:Sequence[float]|NDArray[floating[Any]],
             raise ValueError(f'Period ({t:.4f}) is greater than 6.0')
     return Sa
 
-def EC8_spectrum(pga:float, T:Sequence[float],  
-             S:float=1.2, TB:float=0.15, 
+def EC8_spectrum(pga:float, T:Sequence[float],
+             S:float=1.2, TB:float=0.15,
              TC:float=0.5, TD:float=2.0)->NDArray[Any]:
     """
     Returns spectral acceleration Sa(g) for given PGA(g) and period array T(s).
     Eurocode 8 Type 1 spectrum, ground type B.
-    
+
     Args:
         pga (float): _description_
         T (Sequence[float]): _description_

@@ -7,17 +7,20 @@ Note that a building is considered to be one with resonant dynamic response if:
   greater than 1.0Hz
 """
 
-from math import log  #, pi, sin, cos, tan, acos, asin, atan, atan2, log10
-from itertools import accumulate
 import doctest
-from sys import path as sys_path
-from os.path import abspath, join as path_join, dirname
 import warnings
+from itertools import accumulate
+from math import log  #, pi, sin, cos, tan, acos, asin, atan, atan2, log10
+from os.path import abspath, dirname
+from os.path import join as path_join
+from sys import path as sys_path
+
 # warnings.filterwarnings("ignore", category=DeprecationWarning)
 # Add the parent directory of 'pySeismic' to sys.path
 sys_path.append(abspath(path_join(dirname(__file__), '..', '..')))
 
 from lateral_tools.math_utils import list_interp
+
 # from lateral_tools.utilities import print_table, interp, \
 #     storey_force_coeffs, storey_force_distribution, storey_forces, \
 #     storey_shear_moment, shear_coords
@@ -29,7 +32,7 @@ from lateral_tools.math_utils import list_interp
 
 def get_storey_shear(storey_forces, elevations_rising=True):
     """elevations rising means forces are ordered with rising storey levels
-    
+
     """
     if elevations_rising:
         return list(accumulate(storey_forces[::-1]))[::-1]
@@ -38,19 +41,21 @@ def get_storey_shear(storey_forces, elevations_rising=True):
 
 
 def get_storey_moment(storey_shears, storey_heights, elevations_rising=True):
-    
+
     """elevations rising means forces are ordered with rising storey levels
-    
+
     """
     if elevations_rising:
-        return list(accumulate(V * h for V, h in zip(storey_shears[::-1], storey_heights[::-1])))[-2::-1] + [0]
+        return list(accumulate(
+            V * h for V, h in zip(storey_shears[::-1], storey_heights[::-1])
+        ))[-2::-1] + [0]
     else:
         return [0] + (accumulate(V * h for V, h in zip(storey_shears, storey_heights)))[:-1]
 
 
 def gen_ff_heights(h, h_list):
     """
-    
+
     """
     # [5.5] + [3.5 for i in range(int((100-5.5)//3.5))]
     return h_list[:-1] + [h_list[-1] for i in range(int((h - sum(h_list[:-1])) // h_list[-1]))]
@@ -58,14 +63,14 @@ def gen_ff_heights(h, h_list):
 
 def gen_elevs(list_of_storey_heights):
     """
-    
+
     """
     return list(accumulate(list_of_storey_heights))
 
 
 def gen_trib_heights(list_of_storey_heights):
     """
-    
+
     """
     if list_of_storey_heights[0] == 0:
         return [0.5 * (a + b) for b, a in zip(list_of_storey_heights,
@@ -77,16 +82,21 @@ def gen_trib_heights(list_of_storey_heights):
 
 def gen_trib_areas(list_of_storey_heights, list_of_storey_widths):
     """
-    
+
     """
     if isinstance(list_of_storey_widths, list):
         h_len = len(list_of_storey_heights)
         w_len = len(list_of_storey_widths)
         if h_len != w_len:
-            err_msg = f'number of storey heights ({h_len}) does not match number of storey widths({w_len})'
+            err_msg = (
+                f'number of storey heights ({h_len}) does not match '
+                f'number of storey widths({w_len})'
+            )
             raise ValueError(err_msg)
         # TODO - fix 'list_of_zip'
-        list_of_storey_areas = [h * w for h, w in zip(list_of_storey_heights, list_of_storey_widths)]
+        list_of_storey_areas = [
+            h * w for h, w in zip(list_of_storey_heights, list_of_storey_widths)
+        ]
         if list_of_storey_heights[0] == 0:
             return [0.5 * (a + b) for b, a in zip(list_of_storey_areas,
                                                 list_of_storey_areas[1:] + [0.0])]
@@ -111,7 +121,7 @@ def gen_trib_areas(list_of_storey_heights, list_of_storey_widths):
 
 def get_1989_q(z, zone='General'):
     """Returns wind pressures (kPa) from HK 1983 Code
-    
+
     The two zones are 'General' & 'Built-Up'
 
     z: height above artificial base (m)
@@ -125,9 +135,9 @@ def get_1989_q(z, zone='General'):
     else:
         heights = (0,30,50,100,150,200,250,300, 600)
         pressures = (0.0,1.2,1.9,2.4,3.0,3.4,3.7,4.0,4.3)
-    if z >= heights[-1]: 
+    if z >= heights[-1]:
         return pressures[-1]
-    else: 
+    else:
         return [p for p, h in zip(pressures, heights) if h > z][0]
 
 
@@ -139,9 +149,9 @@ def get_2004_q(z):
                  2.86,3.05,3.2,3.31,3.41,3.58,3.72,3.72)
     if z < 0:
         return pressures[0]
-    elif z >= heights[-1]: 
+    elif z >= heights[-1]:
         return pressures[-1]
-    else: 
+    else:
         return list_interp(z, heights, pressures, extend=True)
 
 
@@ -154,7 +164,7 @@ def get_v_z_mean(z, z_g=500, alpha=0.11, v_g_mean=56.6):
 
 def get_v_z(z, z_g=500, alpha=0.11, v_g_mean=56.6, g_v=3.7, I_g=0.087):
     """design 3 second gust wind speed v_z at height z (eq 1.2, 1.3, 1.5 combined)
-    
+
     See section 1.21 of explanatory materials
 
     z - elevation in metres
@@ -228,7 +238,7 @@ def get_F_z_dyn(C_f, q_z_mean, A_z, G):
 
 def get_C_h(h_b):
     """Shape factors (Table D2)
-    h_b - building height divided by 
+    h_b - building height divided by
         building breadth (perpendicular to wind) (dimensionless)
     """
     h_bs = [1.0, 2.0, 4.0, 6.0, 10.0, 20.0]
@@ -238,7 +248,7 @@ def get_C_h(h_b):
 
 def get_C_s(b_d):
     """Shape factors (Table D2)
-    b_d - building breadth (perpendicular to wind) divided by 
+    b_d - building breadth (perpendicular to wind) divided by
         building depth in direction of wind (dimensionless)
     """
     b_ds = [1.0, 2.0, 3.0]
@@ -255,13 +265,14 @@ def get_R_A(A):
     return list_interp(max(500,min(A,15000)), Areas, R_As, extend=True)
 
 
-def full_wind_calcs(storey_heights, 
-                    storey_widths_x, storey_widths_y, 
+def full_wind_calcs(storey_heights,
+                    storey_widths_x, storey_widths_y,
                     print_data=False, raise_error=False,
                     old_format=False, debug=False):
     """Returns full set of calculations for HK Wind Code 2004"""
     # This could be speeded up significantly by using numpy
-    #print(f'Bottom storey height is {elevs[0]} m, top storey elevation is {elevs[-1]} m, sum of storeys is {sum(storey_heights)} m')
+    # print(f'Bottom storey height is {elevs[0]} m, top storey elevation is {elevs[-1]} m, sum
+    # of storeys is {sum(storey_heights)} m')
     dd = {}
     dd['storey_heights'] = storey_heights
     dd['storey_elevs'] = list(accumulate(dd['storey_heights']))
@@ -276,7 +287,7 @@ def full_wind_calcs(storey_heights,
             raise ValueError('Number of storey heights does not match number of storey widths (x)')
         bx_ave = sum(storey_widths_x) / len(storey_widths_x)
         dd['storey_widths_x'] = storey_widths_x
-        
+
     # if storey widths (y) are not lists, make them lists
     if not isinstance(storey_widths_y, list):
         by_ave = float(storey_widths_y)
@@ -286,12 +297,12 @@ def full_wind_calcs(storey_heights,
             raise ValueError('Number of storey heights does not match number of storey widths (y)')
         by_ave = sum(storey_widths_y) / len(storey_widths_y)
         dd['storey_widths_y'] = storey_widths_y
-        
+
     # Calculate storey areas (tributary areas), velocities and pressures
 
     dd['trib_areas_x'] = gen_trib_areas(dd['storey_heights'], dd['storey_widths_x'])
     dd['trib_areas_y'] = gen_trib_areas(dd['storey_heights'], dd['storey_widths_y'])
-    dd['storey_mean_vels'] = [get_v_z(z) for z in dd['storey_elevs']] 
+    dd['storey_mean_vels'] = [get_v_z(z) for z in dd['storey_elevs']]
     dd['storey_pressures'] = [get_q_z(v) for v in dd['storey_mean_vels']]
 
     # building height (based on top storey)
@@ -310,12 +321,24 @@ def full_wind_calcs(storey_heights,
         print(f'C_sx: {dd["C_sx"]}; C_sy: {dd["C_sy"]}')
 
     # Calculate horizontal forces
-    dd['storey_forces_x'] = [get_F_z(C_hx + C, p, a_y) for p, a_y, C in zip(dd['storey_pressures'], dd['trib_areas_y'], dd['C_sx'])]
-    dd['storey_forces_y'] = [get_F_z(C_hy + C, p, a_x) for p, a_x, C in zip(dd['storey_pressures'], dd['trib_areas_x'], dd['C_sy'])]
+    dd['storey_forces_x'] = [
+        get_F_z(C_hx + C, p, a_y)
+        for p, a_y, C in zip(dd['storey_pressures'], dd['trib_areas_y'], dd['C_sx'])
+    ]
+    dd['storey_forces_y'] = [
+        get_F_z(C_hy + C, p, a_x)
+        for p, a_x, C in zip(dd['storey_pressures'], dd['trib_areas_x'], dd['C_sy'])
+    ]
     if debug:
         # 'storey_pressures,   trib_areas,     C_s,     storey_forces'
-        _ = [print(f'{col:16s}| len: {len(dd[col])}') for col in ('storey_pressures', 'trib_areas_y', 'C_sx', 'storey_forces_x' )]
-        _ = [print(f'{col:16s}| len: {len(dd[col])}') for col in ('storey_pressures', 'trib_areas_x', 'C_sy', 'storey_forces_y' )]
+        _ = [
+            print(f'{col:16s}| len: {len(dd[col])}')
+            for col in ('storey_pressures', 'trib_areas_y', 'C_sx', 'storey_forces_x')
+        ]
+        _ = [
+            print(f'{col:16s}| len: {len(dd[col])}')
+            for col in ('storey_pressures', 'trib_areas_x', 'C_sy', 'storey_forces_y')
+        ]
 
     dd['storey_shears_x'] = get_storey_shear(dd['storey_forces_x'])
     dd['storey_shears_y'] = get_storey_shear(dd['storey_forces_y'])
@@ -324,7 +347,7 @@ def full_wind_calcs(storey_heights,
 
     ## END OF CALCULATIONS #######
 
-    # Check that maximum shear matches sum of forces and 
+    # Check that maximum shear matches sum of forces and
     # maximum moment is the sum of the products of the storey forces and storey elevations
     sum_of_storey_forces_x = sum(dd['storey_forces_x'])
     sum_of_storey_moments_yy = sum(F * h for F, h in zip(dd['storey_forces_x'], dd['storey_elevs']))
@@ -341,13 +364,19 @@ def full_wind_calcs(storey_heights,
         err_msg = f'Error in sum of x-dir forces ({sum_of_storey_forces_x} vs {max_storey_shear_x})'
         err_list.append(err_msg)
     if round(sum_of_storey_moments_yy) != round(max_storey_moment_yy):
-        err_msg = f'Error in sum of yy-dir moments ({sum_of_storey_moments_yy} vs {max_storey_moment_yy})'
+        err_msg = (
+            f'Error in sum of yy-dir moments '
+            f'({sum_of_storey_moments_yy} vs {max_storey_moment_yy})'
+        )
         err_list.append(err_msg)
     if round(sum_of_storey_forces_y) != round(max_storey_shear_y):
         err_msg = f'Error in sum of y-dir forces ({sum_of_storey_forces_y} vs {max_storey_shear_y})'
         err_list.append(err_msg)
     if round(sum_of_storey_moments_xx) != round(max_storey_moment_xx):
-        err_msg = f'Error in sum of xx-dir moments ({sum_of_storey_moments_xx} vs {max_storey_moment_xx})'
+        err_msg = (
+            f'Error in sum of xx-dir moments '
+            f'({sum_of_storey_moments_xx} vs {max_storey_moment_xx})'
+        )
         err_list.append(err_msg)
     if len(err_list) > 0:
         err_msg = '\n'.join(err_list)
@@ -356,27 +385,44 @@ def full_wind_calcs(storey_heights,
         else:
             warnings.warn(err_msg)
             # print(err_msg)
-    
+
     if debug:
 
         trib_x = dd['trib_areas_x'][0]
         trib_y = dd['trib_areas_y'][0]
-        columns = ['storey_elevs', 'storey_heights', 
-                    'storey_widths_x', 'trib_areas_x', 'C_sx', 'storey_forces_x', 'storey_shears_x', 'storey_moments_yy', 
-                    'storey_widths_y', 'trib_areas_y', 'C_sy', 'storey_forces_y', 'storey_shears_y', 'storey_moments_xx']
-        new_row = [0, 0, 0, trib_x, 0, 0, max_storey_shear_x, max_storey_moment_yy, 0, trib_y, 0, 0, max_storey_shear_y, max_storey_moment_xx]
-        # columns = ['storey_elevs', 'storey_heights', 
-        #             'storey_widths_x', 'trib_areas_x', 'storey_forces_x', 'storey_shears_x', 'storey_moments_yy', 
-        #             'storey_widths_y', 'trib_areas_y', 'storey_forces_y', 'storey_shears_y', 'storey_moments_xx']
-        # new_row = [0, 0, 0, trib_x, 0, max_storey_shear_x, max_storey_moment_yy, 0, trib_y, 0, max_storey_shear_y, max_storey_moment_xx]
-        # columns = ['storey_elevs', 'storey_heights', 
-        #            'storey_forces_x', 'storey_shears_x', 'storey_moments_yy', 
+        columns = [
+            'storey_elevs', 'storey_heights',
+            'storey_widths_x', 'trib_areas_x', 'C_sx', 'storey_forces_x',
+            'storey_shears_x', 'storey_moments_yy',
+            'storey_widths_y', 'trib_areas_y', 'C_sy', 'storey_forces_y',
+            'storey_shears_y', 'storey_moments_xx',
+        ]
+        new_row = [
+            0, 0, 0, trib_x, 0, 0, max_storey_shear_x, max_storey_moment_yy,
+            0, trib_y, 0, 0, max_storey_shear_y, max_storey_moment_xx,
+        ]
+        # columns = ['storey_elevs', 'storey_heights',
+        #             'storey_widths_x', 'trib_areas_x', 'storey_forces_x', 'storey_shears_x',
+        # 'storey_moments_yy',
+        #             'storey_widths_y', 'trib_areas_y', 'storey_forces_y', 'storey_shears_y',
+        # 'storey_moments_xx']
+        # new_row = [0, 0, 0, trib_x, 0, max_storey_shear_x, max_storey_moment_yy, 0, trib_y, 0,
+        # max_storey_shear_y, max_storey_moment_xx]
+        # columns = ['storey_elevs', 'storey_heights',
+        #            'storey_forces_x', 'storey_shears_x', 'storey_moments_yy',
         #             'storey_forces_y', 'storey_shears_y', 'storey_moments_xx']
-        # new_row = [0, 0, 0, max_storey_shear_x, max_storey_moment_yy, 0, max_storey_shear_y, max_storey_moment_xx]
+        # new_row = [0, 0, 0, max_storey_shear_x, max_storey_moment_yy, 0, max_storey_shear_y,
+        # max_storey_moment_xx]
         try:
             import pandas as pd
             from IPython.display import display
-            df = pd.DataFrame({k:(v[1:] if k.startswith('trib_areas_') else v) for k, v in dd.items() if k in columns})
+            df = pd.DataFrame(
+                {
+                    k: (v[1:] if k.startswith('trib_areas_') else v)
+                    for k, v in dd.items()
+                    if k in columns
+                }
+            )
             # New row data (as a dictionary or list)
             new_row_data = {k:v for k, v in zip(columns, new_row)}
 
@@ -416,66 +462,127 @@ def full_wind_calcs(storey_heights,
 
         print(f'C_hx : {C_hx:4.3f}   C_hy : {C_hy:4.3f}\n')
 
-        [print(f'{a:4.2f} m, {ax:4.2f} m, {ay:4.2f} m, {v:4.2f} m/s, {p:4.2f} kPa') \
-        for a, ax, ay, v, p in zip(dd['storey_heights'], dd['trib_areas_x'], 
-                                    dd['trib_areas_y'], dd['storey_mean_vels'], dd['storey_pressures'])]
+        [
+            print(f'{a:4.2f} m, {ax:4.2f} m, {ay:4.2f} m, {v:4.2f} m/s, {p:4.2f} kPa')
+            for a, ax, ay, v, p in zip(
+                dd['storey_heights'], dd['trib_areas_x'], dd['trib_areas_y'],
+                dd['storey_mean_vels'], dd['storey_pressures'],
+            )
+        ]
         print()
 
-        [print(f'{a:4.2f} m, {ax:4.2f} m, {ay:4.2f} m, {v:4.2f} m/s, {p:4.2f} kPa, {x:7,.0f} kN, {y:7,.0f} kN') \
-        for a, ax, ay, v, p, x, y in zip(dd['storey_heights'], dd['trib_areas_x'], dd['trib_areas_y'], 
-                                        dd['storey_mean_vels'], dd['storey_pressures'], dd['storey_forces_x'], dd['storey_forces_y'])]
+        [
+            print(
+                f'{a:4.2f} m, {ax:4.2f} m, {ay:4.2f} m, {v:4.2f} m/s, '
+                f'{p:4.2f} kPa, {x:7,.0f} kN, {y:7,.0f} kN'
+            )
+            for a, ax, ay, v, p, x, y in zip(
+                dd['storey_heights'], dd['trib_areas_x'], dd['trib_areas_y'],
+                dd['storey_mean_vels'], dd['storey_pressures'],
+                dd['storey_forces_x'], dd['storey_forces_y'],
+            )
+        ]
         print()
 
-        print('Vx,base = {:7,.0f} kN,    Myy,base = {:7,.0f} kNm'.format(sum_of_storey_forces_x, sum_of_storey_moments_yy))
-        print('Vy,base = {:7,.0f} kN,    Mxx,base = {:7,.0f} kNm'.format(sum_of_storey_forces_y, sum_of_storey_moments_xx))
+        print(
+            'Vx,base = {:7,.0f} kN,    Myy,base = {:7,.0f} kNm'.format(
+                sum_of_storey_forces_x, sum_of_storey_moments_yy
+            )
+        )
+        print(
+            'Vy,base = {:7,.0f} kN,    Mxx,base = {:7,.0f} kNm'.format(
+                sum_of_storey_forces_y, sum_of_storey_moments_xx
+            )
+        )
         print()
 
-        [print(f'{h:4.2f} m, {z:4.2f} m, {Fx:7,.0f} kN, {Vx:7,.0f} kN, {Myy:7,.0f} kNm, {Vy:7,.0f} kN, {Mxx:7,.0f} kNm') \
-        for h, z, Fx, Vx, Myy, Vy, Mxx in zip(dd['storey_heights'], dd['storey_elevs'], dd['storey_forces_x'], 
-                                            dd['storey_shears_x'], dd['storey_moments_yy'], dd['storey_shears_y'], dd['storey_moments_xx'])]
+        [
+            print(
+                f'{h:4.2f} m, {z:4.2f} m, {Fx:7,.0f} kN, {Vx:7,.0f} kN, '
+                f'{Myy:7,.0f} kNm, {Vy:7,.0f} kN, {Mxx:7,.0f} kNm'
+            )
+            for h, z, Fx, Vx, Myy, Vy, Mxx in zip(
+                dd['storey_heights'], dd['storey_elevs'], dd['storey_forces_x'],
+                dd['storey_shears_x'], dd['storey_moments_yy'],
+                dd['storey_shears_y'], dd['storey_moments_xx'],
+            )
+        ]
         print()
 
-    max_storey_moment_xx = dd['storey_moments_xx'][0] + dd['storey_shears_y'][0] * dd['storey_elevs'][0]
-    max_storey_moment_yy = dd['storey_moments_yy'][0] + dd['storey_shears_x'][0] * dd['storey_elevs'][0]
+    max_storey_moment_xx = (
+        dd['storey_moments_xx'][0] + dd['storey_shears_y'][0] * dd['storey_elevs'][0]
+    )
+    max_storey_moment_yy = (
+        dd['storey_moments_yy'][0] + dd['storey_shears_x'][0] * dd['storey_elevs'][0]
+    )
 
     if not old_format:
         dd['storey_moments_yy'] = [max_storey_moment_yy] + dd['storey_moments_yy'][:-1]
         dd['storey_moments_xx'] = [max_storey_moment_xx] + dd['storey_moments_xx'][:-1]
-    
+
     ### PRINT RESULTS if print_data is True #######
     if print_data:
-    
+
         print(f'C_hx : {C_hx:4.3f}   C_hy : {C_hy:4.3f}\n')
 
-        [print(f'{a:4.2f} m, {ax:4.2f} m, {ay:4.2f} m, {v:4.2f} m/s, {p:4.2f} kPa') \
-            for a, ax, ay, v, p in zip(dd['storey_heights'], dd['trib_areas_x'], 
-                                        dd['trib_areas_y'], dd['storey_mean_vels'], dd['storey_pressures'])]
+        [
+            print(f'{a:4.2f} m, {ax:4.2f} m, {ay:4.2f} m, {v:4.2f} m/s, {p:4.2f} kPa')
+            for a, ax, ay, v, p in zip(
+                dd['storey_heights'], dd['trib_areas_x'], dd['trib_areas_y'],
+                dd['storey_mean_vels'], dd['storey_pressures'],
+            )
+        ]
         print()
 
-        [print(f'{a:4.2f} m, {ax:4.2f} m, {ay:4.2f} m, {v:4.2f} m/s, {p:4.2f} kPa, {x:7,.0f} kN, {y:7,.0f} kN') \
-            for a, ax, ay, v, p, x, y in zip(dd['storey_heights'], dd['trib_areas_x'], dd['trib_areas_y'], 
-                                            dd['storey_mean_vels'], dd['storey_pressures'], dd['storey_forces_x'], dd['storey_forces_y'])]
+        [
+            print(
+                f'{a:4.2f} m, {ax:4.2f} m, {ay:4.2f} m, {v:4.2f} m/s, '
+                f'{p:4.2f} kPa, {x:7,.0f} kN, {y:7,.0f} kN'
+            )
+            for a, ax, ay, v, p, x, y in zip(
+                dd['storey_heights'], dd['trib_areas_x'], dd['trib_areas_y'],
+                dd['storey_mean_vels'], dd['storey_pressures'],
+                dd['storey_forces_x'], dd['storey_forces_y'],
+            )
+        ]
         print()
 
-        print('Vx,base = {:7,.0f} kN,    Myy,base = {:7,.0f} kNm'.format(sum_of_storey_forces_x, sum_of_storey_moments_yy))
-        print('Vy,base = {:7,.0f} kN,    Mxx,base = {:7,.0f} kNm'.format(sum_of_storey_forces_y, sum_of_storey_moments_xx))
+        print(
+            'Vx,base = {:7,.0f} kN,    Myy,base = {:7,.0f} kNm'.format(
+                sum_of_storey_forces_x, sum_of_storey_moments_yy
+            )
+        )
+        print(
+            'Vy,base = {:7,.0f} kN,    Mxx,base = {:7,.0f} kNm'.format(
+                sum_of_storey_forces_y, sum_of_storey_moments_xx
+            )
+        )
         print()
         # print('?'*20)
-        # for key in ['storey_heights', 'storey_elevs', 'storey_forces_x', 'storey_shears_x', 'storey_moments_yy', 'storey_shears_y', 'storey_moments_xx']:
+        # for key in ['storey_heights', 'storey_elevs', 'storey_forces_x', 'storey_shears_x',
+        # 'storey_moments_yy', 'storey_shears_y', 'storey_moments_xx']:
         #     val = dd[key][0] # Check the first item of each
         #     print(f"{len(dd[key])} | {key}: {type(val)} - {val}")
         # print('?'*20)
-        [print(f'{h:4.2f} m, {z:4.2f} m, {Fx:7,.0f} kN, {Vx:7,.0f} kN, {Myy:7,.0f} kNm, {Vy:7,.0f} kN, {Mxx:7,.0f} kNm') \
-            for h, z, Fx, Vx, Myy, Vy, Mxx in zip(dd['storey_heights'], dd['storey_elevs'], dd['storey_forces_x'], 
-                                                dd['storey_shears_x'], dd['storey_moments_yy'], dd['storey_shears_y'], dd['storey_moments_xx'])]
+        [
+            print(
+                f'{h:4.2f} m, {z:4.2f} m, {Fx:7,.0f} kN, {Vx:7,.0f} kN, '
+                f'{Myy:7,.0f} kNm, {Vy:7,.0f} kN, {Mxx:7,.0f} kNm'
+            )
+            for h, z, Fx, Vx, Myy, Vy, Mxx in zip(
+                dd['storey_heights'], dd['storey_elevs'], dd['storey_forces_x'],
+                dd['storey_shears_x'], dd['storey_moments_yy'],
+                dd['storey_shears_y'], dd['storey_moments_xx'],
+            )
+        ]
         print()
 
     return dd
 
 
-heights = [0, 5, 10, 20, 30, 
-           50, 75, 100, 150, 
-           200, 250, 300, 400, 
+heights = [0, 5, 10, 20, 30,
+           50, 75, 100, 150,
+           200, 250, 300, 400,
            500, 600]
 
 
@@ -493,7 +600,7 @@ def print_table_G(zeta,n_table=''):
     if n_table != '':
         table_txt = f'Table F{n_table} :'
     print(f'{table_txt} Dynamic Magnification Factor G for ζ = {100*zeta:4.1f}%')
-    [print([round(get_G(h, b, zeta = zeta),3) 
+    [print([round(get_G(h, b, zeta = zeta),3)
     for b in [20, 30, 40]])
     for h in [200, 180, 160, 140, 120, 100]]
 
@@ -515,9 +622,9 @@ def print_table_F2():
 
 
 
-heights = [0, 5, 10, 20, 30, 
-            50, 75, 100, 150, 
-            200, 250, 300, 400, 
+heights = [0, 5, 10, 20, 30,
+            50, 75, 100, 150,
+            200, 250, 300, 400,
             500, 600]
 
 
@@ -546,7 +653,7 @@ def print_table_1(heights=heights):
     v_z = [get_v_z(z) for z in heights]
     print('Table 1: Design Wind Pressure (kPa)')
     [print(f'{z:4.0f} m | {v:4.2f} m/s ' + \
-        f'| {get_q_z(v):4.2f} kPa') 
+        f'| {get_q_z(v):4.2f} kPa')
         for z, v in zip(heights, v_z)]
 
 

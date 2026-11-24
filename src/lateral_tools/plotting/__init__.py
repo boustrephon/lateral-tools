@@ -9,10 +9,31 @@ Sub-modules:
     spectra     — Response spectrum plots (various codes)
     eq          — Earthquake ground motion time-history plots
 """
+from lateral_tools.plotting.eq import EQ_plot, EQ_plot_ss, EQ_plots, RS_plot
+from lateral_tools.plotting.spectra import (
+    _interp_sa,
+    _resolve_spectrum,
+    akima_interpolate,
+    plot_seismic_spectrum,
+    response_spectrum_plots,
+    smooth_interpolate,
+)
 from lateral_tools.plotting.storey import plot_storey_VM, plot_storey_VM2
 from lateral_tools.plotting.tripartite import reorganise_plot_data, tripartite_plot
-from lateral_tools.plotting.spectra import (
-    response_spectrum_plots, smooth_interpolate, akima_interpolate,
-    plot_seismic_spectrum, _resolve_spectrum, _interp_sa,
-)
-from lateral_tools.plotting.eq import EQ_plots, EQ_plot, RS_plot, EQ_plot_ss
+
+__all__ = [
+    "EQ_plot",
+    "EQ_plot_ss",
+    "EQ_plots",
+    "RS_plot",
+    "_interp_sa",
+    "_resolve_spectrum",
+    "akima_interpolate",
+    "plot_seismic_spectrum",
+    "response_spectrum_plots",
+    "smooth_interpolate",
+    "plot_storey_VM",
+    "plot_storey_VM2",
+    "reorganise_plot_data",
+    "tripartite_plot",
+]

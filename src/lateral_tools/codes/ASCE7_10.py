@@ -1,13 +1,13 @@
 """
 A library for carrying out calculations to ASCE7-10
 
-"This Standard provides requirements for 
-general structural design and includes 
-means for determining dead, live, soil, 
-flood, wind, snow, rain, atmospheric 
-ice, and earthquake loads, as well as 
-their combinations, which are suitable 
-for inclusion in building codes and 
+"This Standard provides requirements for
+general structural design and includes
+means for determining dead, live, soil,
+flood, wind, snow, rain, atmospheric
+ice, and earthquake loads, as well as
+their combinations, which are suitable
+for inclusion in building codes and
 other documents."
 
 Previous editions are:
@@ -36,11 +36,11 @@ from lateral_tools.math_utils import list_interp
 #     pass
 
 
-def C_u_interp_func(S_D1): 
+def C_u_interp_func(S_D1):
     """Coefficient for Upper Limit on Calculated Period (Table 12.8-1) ASCE7-10"""
     return list_interp(
-                        S_D1, 
-                        [0.1, 0.15, 0.2, 0.3, 0.4], 
+                        S_D1,
+                        [0.1, 0.15, 0.2, 0.3, 0.4],
                         [1.7, 1.6, 1.5, 1.4, 1.4]
                        )
 
@@ -64,27 +64,30 @@ F_v_dict = {'A': (0.8,0.8,0.8,0.8,0.8,0.8),
 
 # Importance Factors - Table 1.5-2 ASCE7-10
 importance_factors_headers = ('I_s', 'I_i', 'I_w', 'I_e')
-importance_factors_dict = {'I': (0.80, 0.80, 1.00, 1.00), 
-                            'II': (1.00, 1.00, 1.00, 1.00), 
-                            'III': (1.00, 1.10, 1.00, 1.25), 
+importance_factors_dict = {'I': (0.80, 0.80, 1.00, 1.00),
+                            'II': (1.00, 1.00, 1.00, 1.00),
+                            'III': (1.00, 1.10, 1.00, 1.25),
                             'IV': (1.20, 1.25, 1.00, 1.50)}
 
 
 def site_coeffs(site_class, S_s, S_1, debug=False):
-    """Returns F_a, F_v when provided with 
+    """Returns F_a, F_v when provided with
     site class (A-F) and S_s and S_1 values (ASCE 7-10)
     """
     F_a_list = F_a_dict[site_class]
     F_v_list = F_v_dict[site_class]
     if debug:
-        print(f'site_class = {site_class}; S_s = {S_s}; S_1 = {S_1}; F_a = {F_a_list}; F_v = {F_v_list}')
+        print(
+            f'site_class = {site_class}; S_s = {S_s}; S_1 = {S_1}; '
+            f'F_a = {F_a_list}; F_v = {F_v_list}'
+        )
     return list_interp(S_s, F_a_headers, F_a_list), list_interp(S_1, F_v_headers, F_v_list)
 
 
 def site_accels_M(site_class, S_s, S_1):
-    """Returns S_MS, S_M1 when provided with 
+    """Returns S_MS, S_M1 when provided with
     site class (A-F) and S_s and S_1 values
-    
+
     >>> site_accels_M(site_class, S_s, S_1)
     (0.468, 0.33)
     """
@@ -92,12 +95,13 @@ def site_accels_M(site_class, S_s, S_1):
     F_v_list = F_v_dict[site_class]
     F_a = list_interp(S_s, F_a_headers, F_a_list)
     F_v = list_interp(S_1, F_v_headers, F_v_list)
-    return (None if F_a is None else F_a * S_s, 
+    return (None if F_a is None else F_a * S_s,
             None if F_v is None else F_v * S_1)
 
 
 def code_period(h_n, s_type):
-    """Returns period in seconds when given height (h_n) in metres and ASCE41-17 structural type (e.g. 'C1')"""
+    """Returns period in seconds when given height (h_n) in metres and
+    ASCE41-17 structural type (e.g. 'C1')"""
     return C_t_get(s_type)[1] * (h_n / 0.3048) ** x_get(s_type)
 
 
@@ -126,29 +130,29 @@ def S_D1_get(S_M1):
 
 
 def S_a_get(T, S_s, S_1, site_class, T_L = 12.0):
-    """Returns the spectral acceleration when provided 
-    with period (T), S_s, S_1 and site class using 
+    """Returns the spectral acceleration when provided
+    with period (T), S_s, S_1 and site class using
     values for F_a & F_v from tables 11.4-1 & 11.4-2
-    The value for T_L should be taken from 
+    The value for T_L should be taken from
     Figures 22-12 to 22-16
-    
+
     If an MCE_R response spectrum is required, it should
     be multiplied by 1.5 (11.4.6)"""
     F_a, F_v = site_coeffs(site_class, S_s, S_1)
     S_DS = 2 / 3 * F_a * S_s  # Eq 11.4-3
     S_D1 = 2 / 3 * F_v * S_1  # Eq 11.4-4
-    
+
     T_S = S_D1 / S_DS
     T_0 = 0.2 * T_S
-    return min(S_DS, 
+    return min(S_DS,
                S_DS*(0.4 + 0.6*T/T_0), # Eq 11.4-5
                S_D1 / T) if T < T_L \
                 else T_L * S_D1 / (T**2.0)
 
 
 def seismic_design_category_get(S_s, S_1, site_class, risk_category, debug=False):
-    """Returns the ASCE7-10 seismic design category based on the 
-    site spectral accelerations, site class and risk category 
+    """Returns the ASCE7-10 seismic design category based on the
+    site spectral accelerations, site class and risk category
     Table 11.6-1 - Short Period Response
     Table 11.6-2 - 1-sec Period Response
     >>> seismic_design_category_get(0.75, 0.2, 'D', 'II')
@@ -165,47 +169,47 @@ def seismic_design_category_get(S_s, S_1, site_class, risk_category, debug=False
         print('F_a, F_v:', F_a, F_v)
     if debug:
         print('S_DS, S_D1:', S_DS, S_D1)
-    
+
     accel_limits_S = [0.0, 0.167, 0.33, 0.50]
     accel_limits_1 = [0.0, 0.067, 0.133, 0.20]
-    
+
     if risk_category == 'IV':
         design_cat_list = ['A', 'C', 'D', 'D']
     else:
         design_cat_list = ['A', 'B', 'C', 'D']
-    
+
     seismic_design_category_S = 'A'
     for S_lim, S_val in zip(accel_limits_S, design_cat_list):
         if S_DS >= S_lim:
             seismic_design_category_S = S_val
-    
+
     seismic_design_category_1 = 'A'
     for S_lim, S_val in zip(accel_limits_1, design_cat_list):
         if S_D1 >= S_lim:
             seismic_design_category_1 = S_val
-    
+
     print(seismic_design_category_S, seismic_design_category_1)
     seismic_design_category = max(seismic_design_category_S, seismic_design_category_1)
-    
+
     if risk_category in ['I', 'II', 'III'] and S_1 >= 0.75:
         seismic_design_category = 'E'
-    
+
     if risk_category == 'IV' and S_1 >= 0.75:
         seismic_design_category = 'F'
-    
+
     return seismic_design_category
 
 
 #### Ch 12 Seismic Design Requirements for Building Structures ####
 
 
-# def C_u_interp_func(S_D1): 
+# def C_u_interp_func(S_D1):
 #     """Coefficient for Upper Limit on Calculated Period (Table 12.8-1)"""
 #     return list_interp(S_D1, [0.1, 0.15, 0.2, 0.3, 0.4], [1.7, 1.6, 1.5, 1.4, 1.4])
 
 
 # Empirical period factors (returns a tuple of imperial and metric)
-C_t_dict = {'SMRF':(0.028,0.0724), 'CMRF':(0.016,0.0466), 'SEBF': (0.03,0.0731), 
+C_t_dict = {'SMRF':(0.028,0.0724), 'CMRF':(0.016,0.0466), 'SEBF': (0.03,0.0731),
             'SBRBF': (0.03,0.0731), 'other': (0.02,0.0488)}
 
 # C_t_imp_dict = {k: v[0] for k, v in C_t_dict.items()}
@@ -234,7 +238,7 @@ def C_t_get(lateral_system):
     return C_t_dict.get(lateral_system, (0.020, 0.0488))
 
 
-unit_l_dict = {'mm':0.001, 'cm': 0.01, 'm': 1.0, 
+unit_l_dict = {'mm':0.001, 'cm': 0.01, 'm': 1.0,
                'in':0.0254, 'ft':0.3048, 'yd':0.9144}
 
 m_unit_l_dict = {'mm':0.001, 'cm': 0.01, 'm': 1.0}
@@ -244,11 +248,11 @@ ft_unit_l_dict = {'in':1/12, 'ft':1.0, 'yd':3.0}
 
 def unit_dict_get(unit_dict, lateral_system):
     """a units lookup function that returns default of None"""
-    return unit_dict.get(lateral_system, None)  
+    return unit_dict.get(lateral_system, None)
 
 
 def T_code_get(lateral_system, height, units = 'm'):
-    """Returns the code period in seconds for 
+    """Returns the code period in seconds for
     a given structure type and height Eqn 12.8-7, ASCE7-10"""
     usys, unit_dict = (0, ft_unit_l_dict) if units in ('in', 'ft', 'yd') \
         else (1, m_unit_l_dict)
@@ -262,30 +266,30 @@ def T_code_get(lateral_system, height, units = 'm'):
 
 def C_s_get(S_s, S_1, site_class, T, R, I_e, T_L):
     """Returns the seismic response coefficient per 12.8.1.1
-    using when provided with period (T), S_s, S_1 and site 
+    using when provided with period (T), S_s, S_1 and site
     class values for F_a & F_v from tables 11.4-1 & 11.4-2
-    The value for T_L should be taken from 
+    The value for T_L should be taken from
     Figures 22-12 to 22-16
     """
     if T <= 0.5:   # 12.8.1.3
         S_1 = min(S_1, 1.5)
-    
+
     F_a, F_v = site_coeffs(site_class, S_s, S_1)
     S_DS = 2 / 3 * F_a * S_s
     S_D1 = 2 / 3 * F_v * S_1
-    
+
     C_s = S_DS / (R / I_e) # Eq 12.8-2
 
     if T <= T_L:
         C_s = min(C_s, S_D1 * T_L / T / (R / I_e)) # Eq 12.8-3
     else:
         C_s = min(C_s, S_D1 * T_L / T**2 / (R / I_e)) # Eq 12.8-4
-    
+
     C_s = max(C_s, 0.044 * S_DS * I_e, 0.01)  # 12.8-5
-    
+
     if S_1 >= 0.6:
         C_s = max(C_s, 0.5 * S_1 / (R / I_e))
-    
+
     return C_s
 
 

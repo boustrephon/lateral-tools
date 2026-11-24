@@ -1,16 +1,16 @@
 """A library for carrying out calculations to ASCE41-13
 
-ASCE 41-13 which merges ASCE 31-03 (evaluation) with 
+ASCE 41-13 which merges ASCE 31-03 (evaluation) with
 ASCE 41-06 (rehabilitation and retrofit)
 
 * ASCE/SEI 41-06, Seismic Rehabilitation of Existing Buildings
 * ASCE/SEI 31-03, Seismic Evaluation of Existing Buildings.
 
-The predecessor to ASCE 31 was FEMA 310, and the 
+The predecessor to ASCE 31 was FEMA 310, and the
 predecessor to ASCE 41 was FEMA 356 (in turn based
 on FEMA 273).
 
-Note that all references to ASCE 7 are related generically 
+Note that all references to ASCE 7 are related generically
 to ASCE 7-10
 
 The full list of references may be found in section C1.3.
@@ -23,8 +23,9 @@ TODO:
 
 """
 import doctest
+from os.path import abspath, dirname
+from os.path import join as path_join
 from sys import path as sys_path
-from os.path import abspath, join as path_join, dirname
 
 # Add the parent directory of 'pySeismic' to sys.path
 sys_path.append(abspath(path_join(dirname(__file__), '..', '..')))
@@ -33,13 +34,11 @@ sys_path.append(abspath(path_join(dirname(__file__), '..', '..')))
 # from math import pi, sin, cos, tan, acos, asin, atan, atan2, log, log10
 # from itertools import accumulate
 
-from lateral_tools.math_utils import interp, list_interp
-from lateral_tools.print_utils import printt, \
-    storey_force_coeffs, storey_force_distribution, storey_forces, \
-    storey_shear_moment, shear_coords  # noqa: F401
 # from lateral_tools.importing import k_gen # Eq 4-2a
 from lateral_tools.codes.ASCE7_10 import site_coeffs as ASCE7_10_site_coeffs
-
+from lateral_tools.print_utils import (
+    storey_shear_moment,  # noqa: F401
+)
 
 # -----------------------------------------------------------------
 # ----- Tier One Data and Functions -------------------------------
@@ -49,7 +48,7 @@ from lateral_tools.codes.ASCE7_10 import site_coeffs as ASCE7_10_site_coeffs
 # Table 2-5 Level of Seismicity Definitions
 def seismicity_level_get(S_s, S_1, site_class):
     """Returns level of seismicity, Table 2-5, ASCE41-13
-    
+
     S_s & S_1 are the short period and 1-sec period spectral
     acceleration associated with BSE-2N (section 2.4.1.1)
 
@@ -62,13 +61,13 @@ def seismicity_level_get(S_s, S_1, site_class):
             :latex: \\S_1
         site_class: The site classification (A-E)
             :latex: \\class
-    
+
     Returns:
         Seismicity: The level of seismicity per section 2.5
             :latex: \\Seismicity
-    
+
     .. codeauthor:: Andrew Mole <andrew.mole@arup.com>
-    
+
     .. levelofreview:: Work in progress
     """
     S_DS_line = (0.0, 0.167, 0.33, 0.5)
@@ -91,88 +90,88 @@ def seismicity_level_get(S_s, S_1, site_class):
 # Table 3-4  ASCE41-17 Limitations on Use of the Tier 1 & Tier 2 Procedures (number of storeys)
 # No Limit (NL) = -1, Not Permitted (NP) = 0
 struct_types_full_dict = {
-'W1': {'Description':'Light Wood Frames', 
-       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):-1, ('Low', 'S-1'):4, 
+'W1': {'Description':'Light Wood Frames',
+       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):-1, ('Low', 'S-1'):4,
        ('Moderate', 'S-3'):4, ('Moderate', 'S-1'):4, ('High', 'S-3'):4, ('High', 'S-1'):4},
-'W1a': {'Description':'Multistory Multi-Unit Residential Wood Frames', 
-       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):-1, ('Low', 'S-1'):6, 
+'W1a': {'Description':'Multistory Multi-Unit Residential Wood Frames',
+       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):-1, ('Low', 'S-1'):6,
        ('Moderate', 'S-3'):6, ('Moderate', 'S-1'):6, ('High', 'S-3'):6, ('High', 'S-1'):4},
-'W2': {'Description':'Commercial and Industrial Wood Frames', 
-       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):-1, ('Low', 'S-1'):6, 
+'W2': {'Description':'Commercial and Industrial Wood Frames',
+       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):-1, ('Low', 'S-1'):6,
        ('Moderate', 'S-3'):6, ('Moderate', 'S-1'):6, ('High', 'S-3'):6, ('High', 'S-1'):4},
 
-'S1': {'Description':'Steel MRF Stiff diaphragm', 
-       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):-1, ('Low', 'S-1'):12, 
+'S1': {'Description':'Steel MRF Stiff diaphragm',
+       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):-1, ('Low', 'S-1'):12,
        ('Moderate', 'S-3'):12, ('Moderate', 'S-1'):8, ('High', 'S-3'):8, ('High', 'S-1'):6},
-'S1a': {'Description':'Steel MRF Flexible diaphragm', 
-       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):-1, ('Low', 'S-1'):12, 
+'S1a': {'Description':'Steel MRF Flexible diaphragm',
+       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):-1, ('Low', 'S-1'):12,
        ('Moderate', 'S-3'):12, ('Moderate', 'S-1'):8, ('High', 'S-3'):8, ('High', 'S-1'):6},
-'S2': {'Description':'Steel Braced Frames Stiff diaphragm', 
-       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):-1, ('Low', 'S-1'):8, 
+'S2': {'Description':'Steel Braced Frames Stiff diaphragm',
+       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):-1, ('Low', 'S-1'):8,
        ('Moderate', 'S-3'):8, ('Moderate', 'S-1'):8, ('High', 'S-3'):8, ('High', 'S-1'):6},
-'S2a': {'Description':'Steel Braced Frames Flexible Diaphragm', 
-       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):-1, ('Low', 'S-1'):8, 
+'S2a': {'Description':'Steel Braced Frames Flexible Diaphragm',
+       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):-1, ('Low', 'S-1'):8,
        ('Moderate', 'S-3'):8, ('Moderate', 'S-1'):8, ('High', 'S-3'):8, ('High', 'S-1'):6},
-'S3': {'Description':'Steel Light Frames', 
-       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):1, ('Low', 'S-3'):1, ('Low', 'S-1'):1, 
+'S3': {'Description':'Steel Light Frames',
+       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):1, ('Low', 'S-3'):1, ('Low', 'S-1'):1,
        ('Moderate', 'S-3'):1, ('Moderate', 'S-1'):1, ('High', 'S-3'):1, ('High', 'S-1'):1},
-'S4': {'Description':'Dual Systems with Backup Steel MRF', 
-       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):-1, ('Low', 'S-1'):12, 
+'S4': {'Description':'Dual Systems with Backup Steel MRF',
+       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):-1, ('Low', 'S-1'):12,
        ('Moderate', 'S-3'):12, ('Moderate', 'S-1'):8, ('High', 'S-3'):8, ('High', 'S-1'):6},
-'S5': {'Description':'Steel Frame Infill URM Stiff Diaphragm', 
-       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):-1, ('Low', 'S-1'):12, 
+'S5': {'Description':'Steel Frame Infill URM Stiff Diaphragm',
+       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):-1, ('Low', 'S-1'):12,
        ('Moderate', 'S-3'):12, ('Moderate', 'S-1'):8, ('High', 'S-3'):8, ('High', 'S-1'):4},
-'S5a': {'Description':'Steel Frame Infill URM Flexible Diaphragm', 
-       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):-1, ('Low', 'S-1'):12, 
+'S5a': {'Description':'Steel Frame Infill URM Flexible Diaphragm',
+       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):-1, ('Low', 'S-1'):12,
        ('Moderate', 'S-3'):12, ('Moderate', 'S-1'):8, ('High', 'S-3'):8, ('High', 'S-1'):4},
-'S6': {'Description':'Steel Plate Shear Wall', 
-       ('Very Low', 'S-3'):0, ('Very Low', 'S-1'):0, ('Low', 'S-3'):0, ('Low', 'S-1'):0, 
+'S6': {'Description':'Steel Plate Shear Wall',
+       ('Very Low', 'S-3'):0, ('Very Low', 'S-1'):0, ('Low', 'S-3'):0, ('Low', 'S-1'):0,
        ('Moderate', 'S-3'):0, ('Moderate', 'S-1'):0, ('High', 'S-3'):0, ('High', 'S-1'):0},
 
-'C1': {'Description':'RC MRF', 
-       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):-1, ('Low', 'S-1'):12, 
+'C1': {'Description':'RC MRF',
+       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):-1, ('Low', 'S-1'):12,
        ('Moderate', 'S-3'):12, ('Moderate', 'S-1'):8, ('High', 'S-3'):8, ('High', 'S-1'):6},
-'C2': {'Description':'RC Shear Wall Stiff Diaphragm', 
-       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):-1, ('Low', 'S-1'):12, 
+'C2': {'Description':'RC Shear Wall Stiff Diaphragm',
+       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):-1, ('Low', 'S-1'):12,
        ('Moderate', 'S-3'):12, ('Moderate', 'S-1'):8, ('High', 'S-3'):8, ('High', 'S-1'):6},
-'C2a': {'Description':'RC Shear Wall Flexible Diaphragm', 
-       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):-1, ('Low', 'S-1'):12, 
+'C2a': {'Description':'RC Shear Wall Flexible Diaphragm',
+       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):-1, ('Low', 'S-1'):12,
        ('Moderate', 'S-3'):12, ('Moderate', 'S-1'):8, ('High', 'S-3'):8, ('High', 'S-1'):6},
-'C3': {'Description':'RC Frame URM Infill Rigid diaphragm', 
-       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):-1, ('Low', 'S-1'):12, 
+'C3': {'Description':'RC Frame URM Infill Rigid diaphragm',
+       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):-1, ('Low', 'S-1'):12,
        ('Moderate', 'S-3'):12, ('Moderate', 'S-1'):8, ('High', 'S-3'):8, ('High', 'S-1'):4},
-'C3a': {'Description':'RC Frame URM Infill Flexible Diaphragm', 
-       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):-1, ('Low', 'S-1'):12, 
+'C3a': {'Description':'RC Frame URM Infill Flexible Diaphragm',
+       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):-1, ('Low', 'S-1'):12,
        ('Moderate', 'S-3'):12, ('Moderate', 'S-1'):8, ('High', 'S-3'):8, ('High', 'S-1'):4},
-'PC1': {'Description':'Precast/Tilt-Up RC SW Stiff diaphragm', 
-       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):3, ('Low', 'S-1'):2, 
+'PC1': {'Description':'Precast/Tilt-Up RC SW Stiff diaphragm',
+       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):3, ('Low', 'S-1'):2,
        ('Moderate', 'S-3'):2, ('Moderate', 'S-1'):2, ('High', 'S-3'):2, ('High', 'S-1'):2},
-'PC1a': {'Description':'Precast/Tilt-Up RC SW Flexible Diaphragm', 
-       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):3, ('Low', 'S-1'):2, 
+'PC1a': {'Description':'Precast/Tilt-Up RC SW Flexible Diaphragm',
+       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):3, ('Low', 'S-1'):2,
        ('Moderate', 'S-3'):2, ('Moderate', 'S-1'):2, ('High', 'S-3'):2, ('High', 'S-1'):2},
-'PC2': {'Description':'Precast RC Frame with Shear Walls', 
-       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):-1, ('Low', 'S-1'):6, 
+'PC2': {'Description':'Precast RC Frame with Shear Walls',
+       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):-1, ('Low', 'S-1'):6,
        ('Moderate', 'S-3'):6, ('Moderate', 'S-1'):0, ('High', 'S-3'):4, ('High', 'S-1'):0},
-'PC2a': {'Description':'Precast RC Frame without Shear Walls', 
-       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):-1, ('Low', 'S-1'):6, 
+'PC2a': {'Description':'Precast RC Frame without Shear Walls',
+       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):-1, ('Low', 'S-1'):6,
        ('Moderate', 'S-3'):6, ('Moderate', 'S-1'):0, ('High', 'S-3'):4, ('High', 'S-1'):0},
 
-'RM1': {'Description':'Reinforced Masonry Bearing Walls Rigid diaphragm', 
-       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):-1, ('Low', 'S-1'):8, 
+'RM1': {'Description':'Reinforced Masonry Bearing Walls Rigid diaphragm',
+       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):-1, ('Low', 'S-1'):8,
        ('Moderate', 'S-3'):8, ('Moderate', 'S-1'):8, ('High', 'S-3'):8, ('High', 'S-1'):6},
-'RM2': {'Description':'Reinforced Masonry Bearing Walls Flexible Diaphragm', 
-       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):-1, ('Low', 'S-1'):8, 
+'RM2': {'Description':'Reinforced Masonry Bearing Walls Flexible Diaphragm',
+       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):-1, ('Low', 'S-1'):8,
        ('Moderate', 'S-3'):8, ('Moderate', 'S-1'):8, ('High', 'S-3'):8, ('High', 'S-1'):6},
 
-'URM': {'Description':'Unreinforced Masonry Bearing Walls Stiff diaphragm', 
-       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):6, ('Low', 'S-1'):4, 
+'URM': {'Description':'Unreinforced Masonry Bearing Walls Stiff diaphragm',
+       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):6, ('Low', 'S-1'):4,
        ('Moderate', 'S-3'):6, ('Moderate', 'S-1'):0, ('High', 'S-3'):4, ('High', 'S-1'):0},
-'URMa': {'Description':'Unreinforced Masonry Bearing Walls Flexible Diaphragm', 
-       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):6, ('Low', 'S-1'):4, 
+'URMa': {'Description':'Unreinforced Masonry Bearing Walls Flexible Diaphragm',
+       ('Very Low', 'S-3'):-1, ('Very Low', 'S-1'):-1, ('Low', 'S-3'):6, ('Low', 'S-1'):4,
        ('Moderate', 'S-3'):6, ('Moderate', 'S-1'):0, ('High', 'S-3'):4, ('High', 'S-1'):0},
 
-'SI_PD': {'Description':'Seismic Isolation or Passive Dissipation', 
-       ('Very Low', 'S-3'):0, ('Very Low', 'S-1'):0, ('Low', 'S-3'):0, ('Low', 'S-1'):0, 
+'SI_PD': {'Description':'Seismic Isolation or Passive Dissipation',
+       ('Very Low', 'S-3'):0, ('Very Low', 'S-1'):0, ('Low', 'S-3'):0, ('Low', 'S-1'):0,
        ('Moderate', 'S-3'):0, ('Moderate', 'S-1'):0, ('High', 'S-3'):0, ('High', 'S-1'):0},
        }
 
@@ -206,14 +205,14 @@ def S_a_Tier_1_func(S_s: float, S_1: float, T: float, site_class: str) -> float:
             :units: s
         site_class: The site classification (A-E)
             :latex: \\class
-    
+
     Returns:
         S_a: The building spectral acceleration
             :units: g
             :latex: \\S_a
-    
+
     .. codeauthor:: Andrew Mole <andrew.mole@arup.com>
-    
+
     .. levelofreview:: Work in progress
     """
     F_a, F_v = ASCE7_10_site_coeffs(site_class, S_s, S_1)
@@ -234,7 +233,7 @@ table_4_2_dict_13 = {
 # Table 4-3. Default Yield Strengths (fy) of Reinforcing Steel (ksi)
 # The dictionary keys are the start & end dates as a tuple,
 # and the sub-keys are the steel grade in ksi
-# The terms `structural` (33), `intermediate` (40), and `hard (50)` 
+# The terms `structural` (33), `intermediate` (40), and `hard (50)`
 #   became obsolete in 1968.
 table_4_3_dict_13 = {
              (1911, 1959): {33:True, 40:True, 50:True, 60:False, 65:True, 70:False, 75:False},
